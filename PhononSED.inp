@@ -1,0 +1,6 @@
+'RDX'               !Model
+1                   ! # of unit cells
+'/Users/dan/velocities.dat'    ! velocities data file
+'eig.eig'           ! GULP eigenvectors data file
+1000                ! # of timesteps to read in
+.f.                 ! Read entire file until end?
