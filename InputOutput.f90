@@ -38,6 +38,7 @@ subroutine read_input_file
  read(luninp, *) model
  read(luninp, *) fileheader
  read(luninp, *) Nunitcells
+ read(luninp, *) Nk
  read(luninp, *) fvel
  read(luninp, *) feig
  read(luninp, *) Ntimesteps
@@ -59,7 +60,6 @@ subroutine read_input_file
     MoleculesPerUnitCell = 8
     AtomsPerUnitCell = AtomsPerMolecule*MoleculesPerUnitCell !168
     Natoms = Nunitcells*AtomsPerUnitCell
-    Nk = 504
 
     allocate(MassPrefac(AtomsPerUnitCell))
     allocate(freqs(Nk))
@@ -99,8 +99,6 @@ endif
  allocate(SED(Ntimesteps))
  allocate(oneSED(Ntimesteps))
 
- !!allocate(all_smoothed_SED(Nk, Ntimesteps))
-
  !-------------- set up r-vectors (to be filled in) ------
 
 end subroutine read_input_file
@@ -110,7 +108,7 @@ end subroutine read_input_file
 !---------------- Read k-point file ------------------------
 !------------------------------------------------------------
 subroutine read_eigvector_file()
- integer :: Natoms_file, EOF=0, Nk_file
+ integer :: Natoms_file, Nk_file
 
  read(luneig, *) Natoms_file
  if (.not.(AtomsPerUnitCell .eq. Natoms_file)) then
@@ -124,24 +122,22 @@ subroutine read_eigvector_file()
      read(luneig, *)
  enddo
 
- ik = 1
  read(luneig, *) !int
  read(luneig, *) Nk_file  !N kpoints
- if (.not.(Nk .eq. Nk_file)) then
-     write(*,*) "ERROR: N_k in eigenvector file does not match expected &
-                 number of eigenvectors"
-    stop
- endif
+ !if (.not.(Nk .eq. Nk_file)) then
+!     write(*,*) "ERROR: N_k in eigenvector file does not match expected &
+!                 number of eigenvectors"
+!    stop
+! endif
 
  read(luneig, *) !K point at 0.0... in BZ
 
- do while (EOF .eq. 0)
+ do ik = 1, Nk
     read(luneig, *) !Mode    x
     read(luneig, *) freqs(ik)
-    do ia = 1, Natoms
-        read(luneig, *, iostat = EOF)  (eig_vecs(ik, ia, ix), ix=1,3)
+    do ia = 1, AtomsPerUnitCell
+        read(luneig, *) eig_vecs(ik, ia, :)
     enddo
-    ik = ik + 1
  enddo
 
 end subroutine read_eigvector_file
@@ -202,9 +198,24 @@ subroutine print_SED
 
  call io_open(lunout, filename=trim(fileheader)//"_SED.dat")
 
- do i = 1, size(SED_smoothed)
-    write(lunout, '(f12.2,f12.9)') freqs_smoothed(i), SED_smoothed(i)
- end do
+ do i = 1, NPointsOut
+    write(lunout, '(f12.2)', advance='no') freqs_smoothed(i)
+
+    do j = 1, Nk-1
+        write(lunout, '(f16.10)', advance='no') all_SED_smoothed(j, i)
+    enddo
+
+    write(lunout, '(f16.10)', advance='yes') all_SED_smoothed(Nk, i)
+enddo
+
+ call io_close(lunout)
+ call io_open(lunout, filename=trim(fileheader)//"_frequencies.dat")
+
+ do i = 1, Nk
+    write(lunout, '(f16.10)') freqs(i)
+ enddo
+
+ call io_close(lunout)
 
 end subroutine print_SED
 

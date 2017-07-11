@@ -22,12 +22,12 @@ module main_vars
  implicit none
  integer :: Natoms, Nunitcells, AtomsPerMolecule, MoleculesPerUnitCell, AtomsPerUnitCell
  integer :: Nk, lunvel, luneig, lunout, ik, ia, i, j, idx, ix, Ntimesteps, t
- integer :: NPointsOut
+ integer :: NPointsOut, length, BlockSize
  logical :: READALL
  real(8) :: timestep, MaxFreqOut, MinFreqOut
  real(8) :: MC = 12.011000, MN = 14.007200, MO = 15.999430, MH = 1.0080000
- real(8), dimension(:), allocatable :: MassPrefac, freqs, spectrum_freqs, freqs_smoothed, SED_smoothed, SED, oneSED
- real(8), dimension(:,:), allocatable :: all_smoothed_SED, r
+ real(8), dimension(:), allocatable :: MassPrefac, freqs, spectrum_freqs, freqs_smoothed, SED, oneSED
+ real(8), dimension(:,:), allocatable :: all_SED_smoothed, r
  real(8), dimension(3,3) :: box
  real(8), dimension(:,:,:), allocatable :: eig_vecs
  real(4), dimension(:,:,:), allocatable :: velocities

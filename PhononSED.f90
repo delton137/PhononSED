@@ -28,6 +28,7 @@ Program PhononSED
  use dans_timer
  use eig_project
  use InputOutput
+ integer :: k
 
  call start_timer("total")
 
@@ -40,8 +41,15 @@ Program PhononSED
  !read in velocities data
  call read_velocities_file(lunvel)
 
- !test project
- call eigen_projection_and_SED(eig_vecs(1,:,:))
+ !calculate/allocate variables
+ call calculate_frequencies_and_smoothing
+
+ !Calculate SEDs for different eigenvectors
+
+ do k = 1, Nk
+    write(*, '(a,i5,a,i5,a)') "Doing ", k, " of ", Nk, " k-vectors"
+    call eigen_projection_and_SED(eig_vecs(k,:,:), all_SED_smoothed(k, :))
+ enddo
 
  !print SED
  call print_SED()

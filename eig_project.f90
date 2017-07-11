@@ -27,11 +27,49 @@ module eig_project
 !-----------------------------------------------------------------------
 !----------------- project velocities onto eigenvector k --------------
 !-----------------------------------------------------------------------
-subroutine eigen_projection_and_SED(k)
+subroutine calculate_frequencies_and_smoothing
+ implicit none
+ integer :: PointsAvailable
+
+ length = Ntimesteps
+
+ allocate(spectrum_freqs(Ntimesteps))
+
+ do i = 0, Ntimesteps-1
+   spectrum_freqs(i+1) = dble(i)/(timestep*2d0*length)
+ enddo
+
+ spectrum_freqs = spectrum_freqs/(ps2s*Cspeed) !convert to 1/cm
+
+ allocate(freqs_smoothed(NPointsOut))
+
+ BlockSize = floor(real(length/NPointsOut))
+
+ do i = 1, NPointsOut
+    freqs_smoothed(i) = sum(spectrum_freqs((i-1)*BlockSize+1:i*BlockSize) ) /BlockSize
+ enddo
+
+ !------------ figure out variables for smoothing --------------
+ MinFreqOut =  spectrum_freqs(2) !smallest possible frequency
+
+ PointsAvailable = floor(MaxFreqOut/MinFreqOut) !max number possible
+
+ if (PointsAvailable .lt. NPointsOut) NPointsOut = PointsAvailable
+
+ BlockSize = floor(real(Length)/real(NPointsOut))
+
+ allocate(all_SED_smoothed(Nk, NPointsOut))
+
+end subroutine calculate_frequencies_and_smoothing
+
+!-----------------------------------------------------------------------
+!----------------- project velocities onto eigenvector k --------------
+!-----------------------------------------------------------------------
+subroutine eigen_projection_and_SED(k, SED_smoothed)
  implicit none
  real(8), dimension(Natoms, 3), intent(in) :: k !!Eigenvector to project onto
+ real(8), dimension(NpointsOut), intent(out) :: SED_smoothed
  real(8) :: part1
- integer :: length, BlockSize, PointsAvailable
 
 
  !-------------- projection ------------------------------
@@ -46,13 +84,8 @@ subroutine eigen_projection_and_SED(k)
      enddo
  enddo
 
- !write(*,*) qdot(1:5, 1, 1)
-
-
 !----------------- calculate Spectral Energy Density -----
  SED = 0.0
-
- length = Ntimesteps!size(qdot(:,1,1))
 
  do ia = 1, Natoms
      do ix = 1, 3
@@ -61,46 +94,12 @@ subroutine eigen_projection_and_SED(k)
      enddo
  enddo
 
- SED = 2d0*(1d0/(2d0*3.14159d0))*SED !!*(1d0/(length*timestep))
-
-!------------ Construct frequencies if they haven't already -------
-
-if (.not.(allocated(spectrum_freqs))) then
-    allocate(spectrum_freqs(Ntimesteps))
-
-    do i = 0, Ntimesteps-1
-      spectrum_freqs(i+1) = dble(i)/(timestep*2d0*length)
-    enddo
-
-    spectrum_freqs = spectrum_freqs/(ps2s*Cspeed) !convert to 1/cm
-
-    allocate(freqs_smoothed(NPointsOut))
-
-    BlockSize = floor(real(length/NPointsOut))
-
-    do i = 1, NPointsOut
-       freqs_smoothed(i) = sum(spectrum_freqs((i-1)*BlockSize+1:i*BlockSize) ) /BlockSize
-    enddo
-endif
-
-!------------ figure out variables for smoothing --------------
- if (.not.(allocated(SED_smoothed))) then
-    MinFreqOut =  spectrum_freqs(2) !smallest possible frequency
-
-    PointsAvailable = floor(MaxFreqOut/MinFreqOut) !max number possible
-
-    if (PointsAvailable .lt. NPointsOut) NPointsOut = PointsAvailable
-
-    allocate(SED_smoothed(NPointsOut))
-
-    BlockSize = floor(real(Length)/real(NPointsOut))
- endif
+ SED = (1d0/3.14159d0)*SED/timestep !!*(1d0/(2*length) ) division performed in DFT routine
 
  !------- block averaging / smoothing --------------------------
  do i = 1, NPointsOut
    SED_smoothed(i) = sum(SED((i-1)*BlockSize+1:i*BlockSize) ) /BlockSize
  enddo
-
 
 end subroutine eigen_projection_and_SED
 
@@ -132,7 +131,7 @@ subroutine calc_DFT_squared(input, output, tread)
 
  call four1(transformed,2*trun,1)
 
- output=dble(transformed(0:tread-1)*CONJG(transformed(0:tread-1)))/(2d0*trun)  !!**2  !! normalization doesn't seem necessary here
+ output=dble(transformed(0:tread-1)*CONJG(transformed(0:tread-1)))/(2d0*trun)
 
 end subroutine calc_DFT_squared
 

@@ -1,6 +1,7 @@
 'RDX'               !Model
 'RDXtest'           !output file header
-8                  ! # of unit cells
+8                   ! # of unit cells
+10                  ! # of k-vectors to do the calculation on
 '/Users/dan/velocities.dat'    ! velocities data file
 'example.eig'           ! GULP eigenvectors data file
 10000                ! # of timesteps to read in
