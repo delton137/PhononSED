@@ -26,7 +26,7 @@ Program PhononSED
  use main_vars
  use lun_management
  use dans_timer
- use eig_projec
+ use eig_project
  use InputOutput
 
  call start_timer("total")
@@ -41,17 +41,12 @@ Program PhononSED
  call read_velocities_file(lunvel)
 
  !test project
- call eigen_projection(eig_vecs(1,:,:))
-
-
- !main loop
-
- !calculate SED
+ call eigen_projection_and_SED(eig_vecs(1,:,:))
 
  !print SED
+ call print_SED()
 
- !end main loop
-
+ !print timing report
  call print_timing_report(6)
 
 end program PhononSED

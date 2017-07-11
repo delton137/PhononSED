@@ -18,7 +18,7 @@
 ! DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 ! OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 !-------------------------------------------------------------------------------------
-module eig_projec
+module eig_project
     use main_vars
     implicit none
 
@@ -27,58 +27,97 @@ module eig_projec
 !-----------------------------------------------------------------------
 !----------------- project velocities onto eigenvector k --------------
 !-----------------------------------------------------------------------
-subroutine eigen_projection(k)
+subroutine eigen_projection_and_SED(k)
  implicit none
  real(8), dimension(Natoms, 3), intent(in) :: k !!Eigenvector to project onto
- real(8), dimension(:,:), allocatable :: r
  real(8) :: part1
+ integer :: length, BlockSize, PointsAvailable
 
- allocate(qdot(Ntimesteps, Natoms, 3))
- allocate(r(Nunitcells, 3))
 
- write(*, *) velocities(1,1, :)
-
- !projection
+ !-------------- projection ------------------------------
  do t = 1, Ntimesteps
      do j = 1, Nunitcells
          do i = 1, AtomsPerUnitCell
              ia = i + (j-1)*AtomsPerUnitCell
              r(j, :) = (/ 0, 0, 0 /)
-             part1 = MassPrefac(ia)*dot_product(velocities(t, ia, :), k(ia, :))
+             part1 = MassPrefac(i)*dot_product(velocities(t, ia, :), k(ia, :))
              qdot(t, ia, :) = part1*exp(  dcmplx(0, 1)*dot_product(k(ia, :), r(j, :))  )
          enddo
      enddo
  enddo
 
-end subroutine eigen_projection
+ !write(*,*) qdot(1:5, 1, 1)
 
 
+!----------------- calculate Spectral Energy Density -----
+ SED = 0.0
 
-!-----------------------------------------------------------------------
-!----------------- calculate Spectral Energy Density  -----------------
-!-----------------------------------------------------------------------
-subroutine calculate_SED()
- implicit none
+ length = Ntimesteps!size(qdot(:,1,1))
+
+ do ia = 1, Natoms
+     do ix = 1, 3
+         call calc_DFT_squared(qdot(:,ia,ix), oneSED, length)
+         SED = SED + oneSED
+     enddo
+ enddo
+
+ SED = 2d0*(1d0/(2d0*3.14159d0))*SED !!*(1d0/(length*timestep))
+
+!------------ Construct frequencies if they haven't already -------
+
+if (.not.(allocated(spectrum_freqs))) then
+    allocate(spectrum_freqs(Ntimesteps))
+
+    do i = 0, Ntimesteps-1
+      spectrum_freqs(i+1) = dble(i)/(timestep*2d0*length)
+    enddo
+
+    spectrum_freqs = spectrum_freqs/(ps2s*Cspeed) !convert to 1/cm
+
+    allocate(freqs_smoothed(NPointsOut))
+
+    BlockSize = floor(real(length/NPointsOut))
+
+    do i = 1, NPointsOut
+       freqs_smoothed(i) = sum(spectrum_freqs((i-1)*BlockSize+1:i*BlockSize) ) /BlockSize
+    enddo
+endif
+
+!------------ figure out variables for smoothing --------------
+ if (.not.(allocated(SED_smoothed))) then
+    MinFreqOut =  spectrum_freqs(2) !smallest possible frequency
+
+    PointsAvailable = floor(MaxFreqOut/MinFreqOut) !max number possible
+
+    if (PointsAvailable .lt. NPointsOut) NPointsOut = PointsAvailable
+
+    allocate(SED_smoothed(NPointsOut))
+
+    BlockSize = floor(real(Length)/real(NPointsOut))
+ endif
+
+ !------- block averaging / smoothing --------------------------
+ do i = 1, NPointsOut
+   SED_smoothed(i) = sum(SED((i-1)*BlockSize+1:i*BlockSize) ) /BlockSize
+ enddo
 
 
+end subroutine eigen_projection_and_SED
 
-
-
-end subroutine calculate_SED
 
 
 !------------------------------------------------------------------------
 !-------  Compute DFT (discrete Fourier transform) using four1.f
 !------------------------------------------------------------------------
-subroutine calc_DFT(input, output, freqs, timestep, tread)
+subroutine calc_DFT_squared(input, output, tread)
  Implicit none
  integer, intent(in) :: tread
- double precision, dimension(tread), intent(in) :: input
- double precision, intent(in) :: timestep
- double precision, dimension(tread), intent(out) :: freqs, output
+ double complex, dimension(tread), intent(in) :: input
+ double precision, dimension(tread), intent(out) ::  output
  complex, dimension(:), allocatable :: transformed
- integer :: trun, i
+ integer :: trun
 
+ !zero padding
  trun = 2**(    floor( dlog(  dble(tread)  )/dlog(2d0)  )  + 1 )
 
  if (.not. allocated(transformed)) then
@@ -89,39 +128,12 @@ subroutine calc_DFT(input, output, freqs, timestep, tread)
  endif
 
  transformed = 0
- transformed(0:tread-1) = cmplx(input)
+ transformed(0:tread-1) = input
 
  call four1(transformed,2*trun,1)
 
- output = dble(transformed(0:tread-1))/(2d0*trun)
+ output=dble(transformed(0:tread-1)*CONJG(transformed(0:tread-1)))/(2d0*trun)  !!**2  !! normalization doesn't seem necessary here
 
- do i = 0, tread-1
-	freqs(i+1) = dble(i)/(timestep*2d0*tread)
- enddo
+end subroutine calc_DFT_squared
 
-end subroutine calc_DFT
-
-
-!------------------------------------------------
-!----- block averaging for smoothing -----------
-!------------------------------------------------
-function block_average(input, N)
- integer, intent(in) :: N  !block size
- double precision, dimension(:), intent(in) :: input
- double precision, dimension(N)  :: block_average
- integer :: i, BlockSize
-
- BlockSize = floor(real(size(input))/N)
-
- if (BlockSize .eq. 0) then
-	block_average = input
-	return
- endif
-
- do i = 1, N
-	block_average(i) = sum( input((i-1)*BlockSize+1:i*BlockSize) ) /BlockSize
- enddo
-
-end function block_average
-
-end module eig_projec
+end module eig_project

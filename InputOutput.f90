@@ -30,16 +30,21 @@ module InputOutput
 !------------------------------------------------------------
 subroutine read_input_file
  implicit none
- integer :: luninp
+ integer :: luninp, Nlines, EoF
+
 
  call io_assign(luninp)
  open(luninp, file="PhononSED.inp", status='old', action='read')
  read(luninp, *) model
+ read(luninp, *) fileheader
  read(luninp, *) Nunitcells
  read(luninp, *) fvel
  read(luninp, *) feig
  read(luninp, *) Ntimesteps
+ read(luninp, *) timestep
  read(luninp, *) READALL
+ read(luninp, *) NPointsOut
+ read(luninp, *) MaxFreqOut
  call io_close(luninp)
 
  call io_assign(lunvel)
@@ -56,23 +61,50 @@ subroutine read_input_file
     Natoms = Nunitcells*AtomsPerUnitCell
     Nk = 504
 
-    allocate(MassPrefac(Natoms))
+    allocate(MassPrefac(AtomsPerUnitCell))
     allocate(freqs(Nk))
     allocate(eig_vecs(Nk, Natoms, 3))
 
     !build array of masses
     do i = 1, MoleculesPerUnitCell
-        idx = (i-1)*AtomsPerMolecule
+        idx = (i-1)*AtomsPerMolecule + 1
         MassPrefac(idx+0:idx+2)   = MC ! Carbon
         MassPrefac(idx+3:idx+8)   = MN ! Nitrogen
         MassPrefac(idx+9:idx+14)  = MO ! Oxygen
         MassPrefac(idx+15:idx+20) = MH ! Hydrogen
     enddo
-    MassPrefac = sqrt(MassPrefac/Nunitcells)
+    MassPrefac = sqrt(MassPrefac/real(Nunitcells))
  endif
 
+ !------------- read length of velocities file ----------------------
+ if (READALL) then
+    write(*,*) "Reading size of file ..."
+
+    Nlines = 0
+    do
+        read(lunvel, *, iostat=EoF)
+        if (.not.(EoF .eq. 0)) then
+            exit
+        else
+            Nlines = Nlines + 1
+        endif
+    enddo
+    Ntimesteps = floor(real(Nlines)/real(Natoms+9)) - 1
+    write(*, *) "There are ", Ntimesteps, " timesteps in the file"
+
+endif
+
+ allocate(qdot(Ntimesteps, Natoms, 3))
+ allocate(r(Nunitcells, 3))
+ allocate(SED(Ntimesteps))
+ allocate(oneSED(Ntimesteps))
+
+ !!allocate(all_smoothed_SED(Nk, Ntimesteps))
+
+ !-------------- set up r-vectors (to be filled in) ------
 
 end subroutine read_input_file
+
 
 !------------------------------------------------------------
 !---------------- Read k-point file ------------------------
@@ -81,12 +113,14 @@ subroutine read_eigvector_file()
  integer :: Natoms_file, EOF=0, Nk_file
 
  read(luneig, *) Natoms_file
- if (.not.(Natoms .eq. Natoms_file)) then
-     write(*,*) "ERROR: N_atoms in eigenvector file does not match expected \\
-                 number of atoms per unit cell"
+ if (.not.(AtomsPerUnitCell .eq. Natoms_file)) then
+     write(*,*) "ERROR: N_atoms in eigenvector file ( ", Natoms_file," ) does", &
+                 " not match expected number of atoms per unit cell (", &
+                 AtomsPerUnitCell, ")"
     stop
  endif
- do ia = 1, Natoms
+
+ do ia = 1, AtomsPerUnitCell
      read(luneig, *)
  enddo
 
@@ -94,17 +128,18 @@ subroutine read_eigvector_file()
  read(luneig, *) !int
  read(luneig, *) Nk_file  !N kpoints
  if (.not.(Nk .eq. Nk_file)) then
-     write(*,*) "ERROR: N_k in eigenvector file does not match expected \\
+     write(*,*) "ERROR: N_k in eigenvector file does not match expected &
                  number of eigenvectors"
     stop
  endif
+
  read(luneig, *) !K point at 0.0... in BZ
 
  do while (EOF .eq. 0)
     read(luneig, *) !Mode    x
     read(luneig, *) freqs(ik)
     do ia = 1, Natoms
-        read(luneig, '(3xf10.6)', iostat = EOF)  eig_vecs(ik, ia, : )
+        read(luneig, *, iostat = EOF)  (eig_vecs(ik, ia, ix), ix=1,3)
     enddo
     ik = ik + 1
  enddo
@@ -118,16 +153,10 @@ subroutine read_velocities_file(lun)
  implicit none
  integer, intent(in) :: lun
 
- if (READALL .eqv. .false.) then
      allocate(velocities(Ntimesteps, Natoms, 3))
      do t = 1, Ntimesteps
          call read_one_frame(lunvel, t)
      enddo
- endif
-
- if (READALL .eqv. .true.) then
-     !! to be filled in
- endif
 
 end subroutine read_velocities_file
 
@@ -141,26 +170,42 @@ subroutine read_one_frame(lun, t)
  integer ::  Natoms_file
 
 
- read(lun,*) !comment line
+ read(lun,*) !ITEM: TIMESTEP
+ read(lun,*) !timestep
+ read(lun,*) !ITEM: NUMBER OF ATOMS
  read(lun,*) Natoms_file
  if (.not.(Natoms .eq. Natoms_file)) then
-     write(*,*) "ERROR: N_atoms in eigenvector file does not match expected \\
-                 number of atoms per unit cell"
+     write(*,*) "ERROR: N_atoms in velocity file ( ", Natoms_file," ) does", &
+                 " not match expected total number of atoms (", &
+                 Natoms, ")"
     stop
  endif
-
+ read(lun,*) !ITEM: BOX BOUNDS
  read(lun,*) box(1, :) !bounding box
  read(lun,*) box(2, :)
  read(lun,*) box(3, :)
  read(lun,*) !comment line
 
-    !read velocities
+ !read velocities
  do ia = 1, Natoms
     read(lun,*) (velocities(t, ia, ix), ix=1,3)
  enddo
 
+
 end subroutine read_one_frame
 
+!---------------------------------------------------------------------
+!-----------------  Print SED ---------------------------------------
+!---------------------------------------------------------------------
+subroutine print_SED
+ implicit none
 
+ call io_open(lunout, filename=trim(fileheader)//"_SED.dat")
+
+ do i = 1, size(SED_smoothed)
+    write(lunout, '(f12.2,f12.9)') freqs_smoothed(i), SED_smoothed(i)
+ end do
+
+end subroutine print_SED
 
 end module InputOutput

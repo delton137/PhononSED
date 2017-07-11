@@ -1,6 +1,10 @@
 'RDX'               !Model
-1                   ! # of unit cells
+'RDXtest'           !output file header
+8                  ! # of unit cells
 '/Users/dan/velocities.dat'    ! velocities data file
-'eig.eig'           ! GULP eigenvectors data file
-1000                ! # of timesteps to read in
+'example.eig'           ! GULP eigenvectors data file
+10000                ! # of timesteps to read in
+.01                 ! timestep (ps)
 .f.                 ! Read entire file until end?
+100                 ! N points to output in (smoothed) spectra
+2000                ! Maximum frequency to print out (1/cm)

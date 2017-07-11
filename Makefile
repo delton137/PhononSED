@@ -1,4 +1,4 @@
-FILES=four1 dans_timer lun_management main_vars InputOutput eig_projec PhononSED
+FILES=four1 dans_timer lun_management main_vars InputOutput eig_project PhononSED
 OBJS=$(addsuffix .o, $(FILES))
 
 FC=gfortran
