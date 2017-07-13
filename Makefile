@@ -1,7 +1,7 @@
-FILES=four1 dans_timer lun_management main_vars InputOutput eig_project PhononSED
+FILES=four1 mpi dans_timer lun_management main_vars InputOutput eig_project PhononSED
 OBJS=$(addsuffix .o, $(FILES))
 
-FC=gfortran
+FC= gfortran
 
 #FFLAGS=-fpp  -O3 -C -debug -traceback
 FFLAGS = -O3  -cpp
