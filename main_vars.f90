@@ -19,23 +19,26 @@
 ! OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 !-------------------------------------------------------------------------------------
 module main_vars
+ use mpi
  implicit none
  integer :: Natoms, Nunitcells, AtomsPerMolecule, MoleculesPerUnitCell, AtomsPerUnitCell
- integer :: Nk, lunvel, luneig, lunout, ik, ia, i, j, idx, ix, Ntimesteps, t
+ integer :: Nk, lun, luneig, lunout, ik, ia, i, j, idx, ix, Ntimesteps, t
  integer :: NPointsOut, length, BlockSize
  logical :: READALL
  real(8) :: timestep, MaxFreqOut, MinFreqOut
  real(8) :: MC = 12.011000, MN = 14.007200, MO = 15.999430, MH = 1.0080000
+ real(8), dimension(3) :: lattice_vector
  real(8), dimension(:), allocatable :: MassPrefac, freqs, spectrum_freqs, freqs_smoothed, SED, oneSED
- real(8), dimension(:,:), allocatable :: all_SED_smoothed, r
+ real(8), dimension(:,:), allocatable :: all_SED_smoothed, r, coords
  real(8), dimension(3,3) :: box
  real(8), dimension(:,:,:), allocatable :: eig_vecs
  real(4), dimension(:,:,:), allocatable :: velocities
  double complex, dimension(:,:,:), allocatable :: qdot
  double precision, parameter :: Cspeed=3.00d10 ! cm/s
  double precision, parameter :: ps2s=1d-12 ! 1ps in s
-
- character(len=200) :: model, fvel, feig, fileheader
-
+ character(len=200) :: model, fvel, feig, fcoord, fileheader
+ !MPI variables
+ integer :: Nnodes=1, pid=0, ierr=0
+ integer :: status2(MPI_STATUS_SIZE)
 
 end module main_vars

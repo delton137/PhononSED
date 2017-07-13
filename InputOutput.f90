@@ -41,15 +41,13 @@ subroutine read_input_file
  read(luninp, *) Nk
  read(luninp, *) fvel
  read(luninp, *) feig
+ read(luninp, *) fcoord
  read(luninp, *) Ntimesteps
  read(luninp, *) timestep
  read(luninp, *) READALL
  read(luninp, *) NPointsOut
  read(luninp, *) MaxFreqOut
  call io_close(luninp)
-
- call io_assign(lunvel)
- open(lunvel, file=fvel, status='old', action='read')
 
  call io_assign(luneig)
  open(luneig, file=feig, status='old', action='read')
@@ -74,6 +72,8 @@ subroutine read_input_file
         MassPrefac(idx+15:idx+20) = MH ! Hydrogen
     enddo
     MassPrefac = sqrt(MassPrefac/real(Nunitcells))
+
+    lattice_vector = (/ 13.18200, 11.5740, 10.709 /)
  endif
 
  !------------- read length of velocities file ----------------------
@@ -81,8 +81,12 @@ subroutine read_input_file
     write(*,*) "Reading size of file ..."
 
     Nlines = 0
+
+    call io_assign(lun)
+    open(lun, file=fvel, status='old', action='read')
+
     do
-        read(lunvel, *, iostat=EoF)
+        read(lun, *, iostat=EoF)
         if (.not.(EoF .eq. 0)) then
             exit
         else
@@ -92,10 +96,12 @@ subroutine read_input_file
     Ntimesteps = floor(real(Nlines)/real(Natoms+9)) - 1
     write(*, *) "There are ", Ntimesteps, " timesteps in the file"
 
+    call io_close(lun)
+
 endif
 
  allocate(qdot(Ntimesteps, Natoms, 3))
- allocate(r(Nunitcells, 3))
+ allocate(r(Natoms, 3))
  allocate(SED(Ntimesteps))
  allocate(oneSED(Ntimesteps))
 
@@ -124,11 +130,11 @@ subroutine read_eigvector_file()
 
  read(luneig, *) !int
  read(luneig, *) Nk_file  !N kpoints
- !if (.not.(Nk .eq. Nk_file)) then
-!     write(*,*) "ERROR: N_k in eigenvector file does not match expected &
-!                 number of eigenvectors"
-!    stop
-! endif
+ if (Nk .gt. Nk_file) then
+     write(*,*) "ERROR: N_k specified is larger than the number of  &
+                 eigenvectors in the input file."
+    stop
+ endif
 
  read(luneig, *) !K point at 0.0... in BZ
 
@@ -145,24 +151,41 @@ end subroutine read_eigvector_file
 !-----------------------------------------------------------------------
 !----------------- Read one frame of .xyz velocities file -------------
 !-----------------------------------------------------------------------
-subroutine read_velocities_file(lun)
+subroutine read_LAAMPS_files
  implicit none
- integer, intent(in) :: lun
+ integer :: lun
+
+     !------------- read velocities file ------
+     call io_assign(lun)
+     open(lun, file=fvel, status='old', action='read')
 
      allocate(velocities(Ntimesteps, Natoms, 3))
      do t = 1, Ntimesteps
-         call read_one_frame(lunvel, t)
+         velocities(t, :, :) = one_frame(lun)
      enddo
 
-end subroutine read_velocities_file
+     call io_close(lun)
+
+     !------------- read coordinates file ------
+     call io_assign(lun)
+     open(lun, file=fcoord, status='old', action='read')
+
+     allocate(coords(Natoms, 3))
+     coords = one_frame(lun)
+
+     call io_close(lun)
+
+end subroutine read_LAAMPS_files
+
 
 
 !-----------------------------------------------------------------------
 !----------------- Read one frame of .xyz velocities file -------------
 !-----------------------------------------------------------------------
-subroutine read_one_frame(lun, t)
+function one_frame(lun)
  implicit none
- integer, intent(in) :: lun, t
+ real(8), dimension(Natoms, 3) :: one_frame
+ integer, intent(in) :: lun
  integer ::  Natoms_file
 
 
@@ -184,11 +207,10 @@ subroutine read_one_frame(lun, t)
 
  !read velocities
  do ia = 1, Natoms
-    read(lun,*) (velocities(t, ia, ix), ix=1,3)
+    read(lun,*) (one_frame(ia, ix), ix=1,3)
  enddo
 
-
-end subroutine read_one_frame
+end function one_frame
 
 !---------------------------------------------------------------------
 !-----------------  Print SED ---------------------------------------

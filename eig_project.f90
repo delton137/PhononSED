@@ -62,6 +62,23 @@ subroutine calculate_frequencies_and_smoothing
 
 end subroutine calculate_frequencies_and_smoothing
 
+
+!-----------------------------------------------------------------------
+!----------------- calculate equilibrium unit cell coordinates --------
+!-----------------------------------------------------------------------
+subroutine r_unit_cell_coords
+ implicit none
+
+ do ia = 1, Natoms
+     do ix = 1, 3
+         r(ia, ix) = floor(coords(ia,ix)/lattice_vector(ix))*lattice_vector(ix)
+     enddo
+ enddo
+
+
+
+end subroutine r_unit_cell_coords
+
 !-----------------------------------------------------------------------
 !----------------- project velocities onto eigenvector k --------------
 !-----------------------------------------------------------------------
@@ -74,13 +91,9 @@ subroutine eigen_projection_and_SED(k, SED_smoothed)
 
  !-------------- projection ------------------------------
  do t = 1, Ntimesteps
-     do j = 1, Nunitcells
-         do i = 1, AtomsPerUnitCell
-             ia = i + (j-1)*AtomsPerUnitCell
-             r(j, :) = (/ 0, 0, 0 /)
-             part1 = MassPrefac(i)*dot_product(velocities(t, ia, :), k(ia, :))
-             qdot(t, ia, :) = part1*exp(  dcmplx(0, 1)*dot_product(k(ia, :), r(j, :))  )
-         enddo
+     do ia = 1, Natoms
+         part1 = MassPrefac(i)*dot_product(velocities(t, ia, :), k(ia, :))
+         qdot(t, ia, :) = part1*exp(  dcmplx(0, 1)*dot_product(k(ia, :), r(ia, :))  )
      enddo
  enddo
 

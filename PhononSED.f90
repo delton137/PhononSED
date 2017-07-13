@@ -23,6 +23,7 @@
 !-------------------------------------------------------------------------------------
 
 Program PhononSED
+ use mpi
  use main_vars
  use lun_management
  use dans_timer
@@ -30,7 +31,15 @@ Program PhononSED
  use InputOutput
  integer :: k
 
- call start_timer("total")
+ !---------------------- Start MPI and find number of nodes and pid --------------
+ call MPI_Init(ierr)
+ if (.not. (ierr .eq. 0)) write(*,*) "WARNING: MPI did not intialize correctly."
+ call MPI_Comm_size(MPI_COMM_WORLD, Nnodes, ierr)
+ call MPI_Comm_rank(MPI_COMM_WORLD, pid, ierr)
+
+ write(*, *) "running on ", Nnodes, " nodes"
+
+ if(pid .eq. 0)  call start_timer("total")
 
  !read input file
  call read_input_file
@@ -39,22 +48,24 @@ Program PhononSED
  call read_eigvector_file
 
  !read in velocities data
- call read_velocities_file(lunvel)
+ call read_LAAMPS_files
 
  !calculate/allocate variables
  call calculate_frequencies_and_smoothing
 
- !Calculate SEDs for different eigenvectors
+ !calculate equilibrium unit cell coordinates
+ call r_unit_cell_coords
 
+ !Calculate SEDs for different eigenvectors
  do k = 1, Nk
     write(*, '(a,i5,a,i5,a)') "Doing ", k, " of ", Nk, " k-vectors"
     call eigen_projection_and_SED(eig_vecs(k,:,:), all_SED_smoothed(k, :))
  enddo
 
  !print SED
- call print_SED()
+ if(pid .eq. 0)  call print_SED()
 
  !print timing report
- call print_timing_report(6)
+ if(pid .eq. 0)  call print_timing_report(6)
 
 end program PhononSED
