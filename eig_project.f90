@@ -58,7 +58,7 @@ subroutine calculate_frequencies_and_smoothing
 
  BlockSize = floor(real(Length)/real(NPointsOut))
 
- allocate(all_SED_smoothed(Nk, NPointsOut))
+ allocate(all_SED_smoothed(Nk, Neig, NPointsOut))
 
 end subroutine calculate_frequencies_and_smoothing
 
@@ -75,9 +75,8 @@ subroutine r_unit_cell_coords
      enddo
  enddo
 
-
-
 end subroutine r_unit_cell_coords
+
 
 !-----------------------------------------------------------------------
 !----------------- project velocities onto eigenvector k --------------

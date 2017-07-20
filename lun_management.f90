@@ -24,7 +24,7 @@
 !-------------------------------------------------------------------------------------
 Module lun_management
  implicit none
- integer, save 	    :: stdout=6, stderr=0
+ integer, save 	    :: stdout=6, stderr=0, stdin=5
  integer   	    	:: iostat
  integer, parameter :: min_lun=10, max_lun=99
  integer, parameter :: nunits = max_lun - min_lun+1
@@ -145,4 +145,4 @@ subroutine io_reserve(lun)
       endif
 end subroutine io_reserve
 
-end module 
+end module

@@ -1,10 +1,12 @@
 'RDX'               !Model
 'RDXtest'           !output file header
 8                   ! # of unit cells
-10                  ! # of k-vectors to do the calculation on
-'/Users/dan/velocities.dat'    ! velocities data file
-'example.eig'           ! GULP eigenvectors data file
-10000                ! # of timesteps to read in
+2                   ! # of k-vectors to do the calculation on
+2                     ! # of eigvectors to do the calculation on (1 = Gamma point only)
+'/Users/dan/velocities.dat'    ! LAMMPS velocities data file
+'/Users/dan/eig4x4x4.eig'           ! GULP eigenvectors data file
+'example_coords.dat'   ! LAMMPS coordinates file
+100000                  ! # of timesteps to read in
 .01                 ! timestep (ps)
 .f.                 ! Read entire file until end?
 100                 ! N points to output in (smoothed) spectra

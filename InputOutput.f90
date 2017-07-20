@@ -33,11 +33,13 @@ subroutine read_input_file
  integer :: luninp, Nlines, EoF
 
 
- call io_assign(luninp)
- open(luninp, file="PhononSED.inp", status='old', action='read')
+ !call io_assign(luninp)
+ !open(luninp, file="PhononSED.inp", status='old', action='read')
+ luninp = 5 !read from terminal standard in
  read(luninp, *) model
  read(luninp, *) fileheader
  read(luninp, *) Nunitcells
+ read(luninp, *) Neig
  read(luninp, *) Nk
  read(luninp, *) fvel
  read(luninp, *) feig
@@ -47,10 +49,7 @@ subroutine read_input_file
  read(luninp, *) READALL
  read(luninp, *) NPointsOut
  read(luninp, *) MaxFreqOut
- call io_close(luninp)
-
- call io_assign(luneig)
- open(luneig, file=feig, status='old', action='read')
+ !call io_close(luninp)
 
  if (model == 'RDX') then
     write(*,*) "Model is RDX"
@@ -60,8 +59,8 @@ subroutine read_input_file
     Natoms = Nunitcells*AtomsPerUnitCell
 
     allocate(MassPrefac(AtomsPerUnitCell))
-    allocate(freqs(Nk))
-    allocate(eig_vecs(Nk, Natoms, 3))
+    allocate(freqs(Nk, Neig))
+    allocate(eig_vecs(Nk, Neig, Natoms, 3))
 
     !build array of masses
     do i = 1, MoleculesPerUnitCell
@@ -114,7 +113,10 @@ end subroutine read_input_file
 !---------------- Read k-point file ------------------------
 !------------------------------------------------------------
 subroutine read_eigvector_file()
- integer :: Natoms_file, Nk_file
+ integer :: Natoms_file, Neig_file
+
+ call io_assign(luneig)
+ open(luneig, file=feig, status='old', action='read')
 
  read(luneig, *) Natoms_file
  if (.not.(AtomsPerUnitCell .eq. Natoms_file)) then
@@ -129,21 +131,31 @@ subroutine read_eigvector_file()
  enddo
 
  read(luneig, *) !int
- read(luneig, *) Nk_file  !N kpoints
- if (Nk .gt. Nk_file) then
+ read(luneig, *) Neig_file  !N kpoints
+ if (Neig .gt. Neig_file) then
      write(*,*) "ERROR: N_k specified is larger than the number of  &
                  eigenvectors in the input file."
     stop
  endif
-
- read(luneig, *) !K point at 0.0... in BZ
-
  do ik = 1, Nk
-    read(luneig, *) !Mode    x
-    read(luneig, *) freqs(ik)
-    do ia = 1, AtomsPerUnitCell
-        read(luneig, *) eig_vecs(ik, ia, :)
-    enddo
+     read(luneig, *) !K point at ... in BZ
+
+     do ie = 1, Neig
+        read(luneig, *) !Mode    x
+        read(luneig, *) freqs(ik, ie)
+        do ia = 1, AtomsPerUnitCell
+            read(luneig, *) eig_vecs(ik, ie, ia, :)
+        enddo
+     enddo
+     do ie = Neig+1, Neig_file
+        read(luneig, *) !Mode    x
+        read(luneig, *) !freq
+        do ia = 1, AtomsPerUnitCell
+            read(luneig, *)
+        enddo
+     enddo
+
+
  enddo
 
 end subroutine read_eigvector_file
@@ -218,27 +230,38 @@ end function one_frame
 subroutine print_SED
  implicit none
 
- call io_open(lunout, filename=trim(fileheader)//"_SED.dat")
 
- do i = 1, NPointsOut
-    write(lunout, '(f12.2)', advance='no') freqs_smoothed(i)
+ do ik = 1, Nk
 
-    do j = 1, Nk-1
-        write(lunout, '(f16.10)', advance='no') all_SED_smoothed(j, i)
-    enddo
+     call io_open(lunout, filename=trim(fileheader)//"_"//trim(str(ik))//"_SED.dat")
 
-    write(lunout, '(f16.10)', advance='yes') all_SED_smoothed(Nk, i)
-enddo
+     do i = 1, NPointsOut
+         write(lunout, '(f12.2)', advance='no') freqs_smoothed(i)
 
- call io_close(lunout)
- call io_open(lunout, filename=trim(fileheader)//"_frequencies.dat")
+         do ie = 1, Neig-1
+             write(lunout, '(f16.10)', advance='no') all_SED_smoothed(ik, ie, i)
+         enddo
 
- do i = 1, Nk
-    write(lunout, '(f16.10)') freqs(i)
- enddo
+         write(lunout, '(f16.10)', advance='yes') all_SED_smoothed(ik, Neig, i)
+     enddo
+     call io_close(lunout)
+enddo !ie = 1, Neig
 
- call io_close(lunout)
+
+!call io_open(lunout, filename=trim(fileheader)//"_frequencies.dat")
+
+ !do i = 1, Neig
+!    write(lunout, '(f16.10)') freqs(i)
+ !enddo
+ !call io_close(lunout)
 
 end subroutine print_SED
+
+character(len=20) function str(k)
+!   "Convert an integer to string."
+    integer, intent(in) :: k
+    write (str, *) k
+    str = adjustl(str)
+end function str
 
 end module InputOutput

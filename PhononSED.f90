@@ -32,22 +32,22 @@ Program PhononSED
  integer :: k
 
  !---------------------- Start MPI and find number of nodes and pid --------------
- call MPI_Init(ierr)
+ !call MPI_Init(ierr)
  if (.not. (ierr .eq. 0)) write(*,*) "WARNING: MPI did not intialize correctly."
  call MPI_Comm_size(MPI_COMM_WORLD, Nnodes, ierr)
  call MPI_Comm_rank(MPI_COMM_WORLD, pid, ierr)
-
- write(*, *) "running on ", Nnodes, " nodes"
+ write(*, '(a,i4,a)') "running on ", Nnodes, " nodes"
 
  if(pid .eq. 0)  call start_timer("total")
 
- !read input file
  call read_input_file
 
  !read in k-vectors we will be working with
+ write(*, *) "reading eigenvector file... "
  call read_eigvector_file
 
  !read in velocities data
+ write(*, *) "reading velocities file... "
  call read_LAAMPS_files
 
  !calculate/allocate variables
@@ -57,9 +57,11 @@ Program PhononSED
  call r_unit_cell_coords
 
  !Calculate SEDs for different eigenvectors
- do k = 1, Nk
-    write(*, '(a,i5,a,i5,a)') "Doing ", k, " of ", Nk, " k-vectors"
-    call eigen_projection_and_SED(eig_vecs(k,:,:), all_SED_smoothed(k, :))
+ do ik = 1, Nk
+     do ie = 1, Neig
+         write(*, '(a,i4,a,i4,a,i4,a,i4)') "Doing eigenvector", ieig, " of ", Neig, " and k vector", ik, " of ", Nk
+         call eigen_projection_and_SED(eig_vecs(ik, ie, :, :), all_SED_smoothed(ik, ie, :))
+     enddo
  enddo
 
  !print SED

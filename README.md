@@ -1,5 +1,11 @@
 ### Phonon SED
-Calculates Projected Phonon Spectral Energy Density (SED) from molecular dynamics atomic velocity data and phonon eigenvectors
+Calculates Projected Phonon Spectral Energy Density (SED) from molecular dynamics atomic velocity data and phonon eigenvectors.
+
+Compile with
+`make`
+
+Run as:
+`./PhononSED.x < PhononSED.inp`
 
 references:
 * J. M. Larkin, Ph.D. thesis, Carnegie Mellon University, 2013
