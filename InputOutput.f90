@@ -39,8 +39,8 @@ subroutine read_input_file
  read(luninp, *) model
  read(luninp, *) fileheader
  read(luninp, *) Nunitcells
- read(luninp, *) Neig
  read(luninp, *) Nk
+ read(luninp, *) Neig
  read(luninp, *) fvel
  read(luninp, *) feig
  read(luninp, *) fcoord
@@ -58,17 +58,20 @@ subroutine read_input_file
     AtomsPerUnitCell = AtomsPerMolecule*MoleculesPerUnitCell !168
     Natoms = Nunitcells*AtomsPerUnitCell
 
-    allocate(MassPrefac(AtomsPerUnitCell))
+    allocate(MassPrefac(Natoms))
     allocate(freqs(Nk, Neig))
     allocate(eig_vecs(Nk, Neig, Natoms, 3))
 
-    !build array of masses
-    do i = 1, MoleculesPerUnitCell
-        idx = (i-1)*AtomsPerMolecule + 1
-        MassPrefac(idx+0:idx+2)   = MC ! Carbon
-        MassPrefac(idx+3:idx+8)   = MN ! Nitrogen
-        MassPrefac(idx+9:idx+14)  = MO ! Oxygen
-        MassPrefac(idx+15:idx+20) = MH ! Hydrogen
+    !build array of masses for ALL atoms
+    idx = 1
+    do i = 1, Nunitcells
+        do j = 1, MoleculesPerUnitCell
+            idx = idx + AtomsPerMolecule
+            MassPrefac(idx+0:idx+2)   = MC ! Carbon
+            MassPrefac(idx+3:idx+8)   = MN ! Nitrogen
+            MassPrefac(idx+9:idx+14)  = MO ! Oxygen
+            MassPrefac(idx+15:idx+20) = MH ! Hydrogen
+        enddo
     enddo
     MassPrefac = sqrt(MassPrefac/real(Nunitcells))
 
@@ -99,10 +102,9 @@ subroutine read_input_file
 
 endif
 
- allocate(qdot(Ntimesteps, Natoms, 3))
+ allocate(qdot(Ntimesteps))
  allocate(r(Natoms, 3))
- allocate(SED(Ntimesteps))
- allocate(oneSED(Ntimesteps))
+ allocate(k_vectors(Nk, 3))
 
  !-------------- set up r-vectors (to be filled in) ------
 
@@ -113,7 +115,9 @@ end subroutine read_input_file
 !---------------- Read k-point file ------------------------
 !------------------------------------------------------------
 subroutine read_eigvector_file()
- integer :: Natoms_file, Neig_file
+ integer  :: Natoms_file, Neig_file
+ real(8)  :: mag
+ character(len=10) :: junk
 
  call io_assign(luneig)
  open(luneig, file=feig, status='old', action='read')
@@ -132,21 +136,31 @@ subroutine read_eigvector_file()
 
  read(luneig, *) !int
  read(luneig, *) Neig_file  !N kpoints
+ write(*,'(a,i4,a)') "File contains", Neig_file, " eigenvectors per k-point"
  if (Neig .gt. Neig_file) then
      write(*,*) "ERROR: N_k specified is larger than the number of  &
                  eigenvectors in the input file."
     stop
  endif
  do ik = 1, Nk
-     read(luneig, *) !K point at ... in BZ
+     read(luneig, '(a,3f9.6)') junk, (k_vectors(ik, ix), ix = 1,3)
 
      do ie = 1, Neig
         read(luneig, *) !Mode    x
         read(luneig, *) freqs(ik, ie)
+        mag = 0
         do ia = 1, AtomsPerUnitCell
-            read(luneig, *) eig_vecs(ik, ie, ia, :)
+            read(luneig, *) (eig_vecs(ik, ie, ia, ix), ix = 1, 3)
+            mag = mag + eig_vecs(ik, ie, ia, 1)**2 + eig_vecs(ik, ie, ia, 2)**2 + eig_vecs(ik, ie, ia, 3)**2
+        enddo
+        mag = sqrt(mag)
+        eig_vecs(ik, ie, :, :) = eig_vecs(ik, ie, :, :)/mag !make a unit vector
+        do i = 1, Nunitcells
+            j = AtomsPerUnitCell
+            eig_vecs(ik, ie, i*j+1:i*j+j,:) = eig_vecs(ik, ie, 1:j, :) !fill in rest
         enddo
      enddo
+
      do ie = Neig+1, Neig_file
         read(luneig, *) !Mode    x
         read(luneig, *) !freq
@@ -154,8 +168,6 @@ subroutine read_eigvector_file()
             read(luneig, *)
         enddo
      enddo
-
-
  enddo
 
 end subroutine read_eigvector_file
@@ -236,29 +248,43 @@ subroutine print_SED
      call io_open(lunout, filename=trim(fileheader)//"_"//trim(str(ik))//"_SED.dat")
 
      do i = 1, NPointsOut
-         write(lunout, '(f12.2)', advance='no') freqs_smoothed(i)
+         write(lunout, '(f12.4,1x)', advance='no') freqs_smoothed(i)
 
          do ie = 1, Neig-1
-             write(lunout, '(f16.10)', advance='no') all_SED_smoothed(ik, ie, i)
+             write(lunout, '(e12.6,1x)', advance='no') all_SED_smoothed(ik, ie, i)
          enddo
 
-         write(lunout, '(f16.10)', advance='yes') all_SED_smoothed(ik, Neig, i)
+         write(lunout, '(e12.6)', advance='yes') all_SED_smoothed(ik, Neig, i)
      enddo
      call io_close(lunout)
 enddo !ie = 1, Neig
 
+ call io_open(lunout, filename=trim(fileheader)//"_kvectors.dat")
+ do ik = 1, Nk
+    write(lunout,'(f5.3,1x,f5.3,1x,f5.3)') (k_vectors(ik, ix), ix = 1,3)
+ enddo
+ call io_close(lunout)
 
-!call io_open(lunout, filename=trim(fileheader)//"_frequencies.dat")
 
- !do i = 1, Neig
-!    write(lunout, '(f16.10)') freqs(i)
- !enddo
- !call io_close(lunout)
+
+ call io_open(lunout, filename=trim(fileheader)//"_frequencies.dat")
+ do ie = 1, Neig
+     do ik = 1, Nk-1
+         write(lunout, '(f12.5,1x)', advance='no') freqs(ik, ie)
+     enddo
+        write(lunout, '(f12.5,1x)', advance='yes') freqs(Nk, ie)
+ enddo
+ call io_close(lunout)
 
 end subroutine print_SED
 
+
+
+
+!---------------------------------------------------------------------
+!-----------------Convert an integer to string ----------------------
+!---------------------------------------------------------------------
 character(len=20) function str(k)
-!   "Convert an integer to string."
     integer, intent(in) :: k
     write (str, *) k
     str = adjustl(str)

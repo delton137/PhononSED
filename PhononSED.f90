@@ -29,6 +29,7 @@ Program PhononSED
  use dans_timer
  use eig_project
  use InputOutput
+ implicit none
  integer :: k
 
  !---------------------- Start MPI and find number of nodes and pid --------------
@@ -43,12 +44,16 @@ Program PhononSED
  call read_input_file
 
  !read in k-vectors we will be working with
+ if(pid .eq. 0)  call start_timer("reading files")
+
  write(*, *) "reading eigenvector file... "
  call read_eigvector_file
 
  !read in velocities data
  write(*, *) "reading velocities file... "
  call read_LAAMPS_files
+
+ if(pid .eq. 0)  call stop_timer("reading files")
 
  !calculate/allocate variables
  call calculate_frequencies_and_smoothing
@@ -59,8 +64,8 @@ Program PhononSED
  !Calculate SEDs for different eigenvectors
  do ik = 1, Nk
      do ie = 1, Neig
-         write(*, '(a,i4,a,i4,a,i4,a,i4)') "Doing eigenvector", ieig, " of ", Neig, " and k vector", ik, " of ", Nk
-         call eigen_projection_and_SED(eig_vecs(ik, ie, :, :), all_SED_smoothed(ik, ie, :))
+         write(*, '(a,i4,a,i4,a,i4,a,i4)')  "Doing k vector", ik, " of ", Nk, " and eigenvector", ie, " of ", Neig
+         call eigen_projection_and_SED(eig_vecs(ik, ie, :, :), all_SED_smoothed(ik, ie, :), ik)
      enddo
  enddo
 

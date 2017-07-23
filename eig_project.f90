@@ -30,6 +30,7 @@ module eig_project
 subroutine calculate_frequencies_and_smoothing
  implicit none
  integer :: PointsAvailable
+ real(8) :: MaxFreqPossible
 
  length = Ntimesteps
 
@@ -51,6 +52,9 @@ subroutine calculate_frequencies_and_smoothing
 
  !------------ figure out variables for smoothing --------------
  MinFreqOut =  spectrum_freqs(2) !smallest possible frequency
+ MaxFreqPossible = spectrum_freqs(Ntimesteps) !largest frequency
+
+ if (MaxFreqOut .gt. MaxFreqPossible) MaxFreqOut = MaxFreqPossible
 
  PointsAvailable = floor(MaxFreqOut/MinFreqOut) !max number possible
 
@@ -81,34 +85,30 @@ end subroutine r_unit_cell_coords
 !-----------------------------------------------------------------------
 !----------------- project velocities onto eigenvector k --------------
 !-----------------------------------------------------------------------
-subroutine eigen_projection_and_SED(k, SED_smoothed)
+subroutine eigen_projection_and_SED(eig, SED_smoothed, ik)
  implicit none
- real(8), dimension(Natoms, 3), intent(in) :: k !!Eigenvector to project onto
+ integer, intent(in) :: ik
+ real(8), dimension(Natoms, 3), intent(in) :: eig !!Eigenvector to project onto
  real(8), dimension(NpointsOut), intent(out) :: SED_smoothed
+ real(8), dimension(Ntimesteps) :: SED
  real(8) :: part1
 
 
- !-------------- projection ------------------------------
+ !-------- projection
+ qdot = 0
  do t = 1, Ntimesteps
      do ia = 1, Natoms
-         part1 = MassPrefac(i)*dot_product(velocities(t, ia, :), k(ia, :))
-         qdot(t, ia, :) = part1*exp(  dcmplx(0, 1)*dot_product(k(ia, :), r(ia, :))  )
+         part1 = MassPrefac(ia)*dot_product(velocities(t, ia, :), eig(ia, :))
+         qdot(t) = qdot(t) + part1*exp(  dcmplx(0, 1)*dot_product(k_vectors(ik, :), r(ia, :))  )
      enddo
  enddo
 
-!----------------- calculate Spectral Energy Density -----
- SED = 0.0
-
- do ia = 1, Natoms
-     do ix = 1, 3
-         call calc_DFT_squared(qdot(:,ia,ix), oneSED, length)
-         SED = SED + oneSED
-     enddo
- enddo
+!--------- calculate Spectral Energy Density
+ call calc_DFT_squared(qdot, SED, length)
 
  SED = (1d0/3.14159d0)*SED/timestep !!*(1d0/(2*length) ) division performed in DFT routine
 
- !------- block averaging / smoothing --------------------------
+ !------- block averaging / smoothing
  do i = 1, NPointsOut
    SED_smoothed(i) = sum(SED((i-1)*BlockSize+1:i*BlockSize) ) /BlockSize
  enddo

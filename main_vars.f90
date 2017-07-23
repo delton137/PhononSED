@@ -28,13 +28,13 @@ module main_vars
  real(8) :: timestep, MaxFreqOut, MinFreqOut
  real(8) :: MC = 12.011000, MN = 14.007200, MO = 15.999430, MH = 1.0080000
  real(8), dimension(3) :: lattice_vector
- real(8), dimension(:), allocatable :: MassPrefac, spectrum_freqs, freqs_smoothed, SED, oneSED
- real(8), dimension(:,:), allocatable :: freqs, r, coords
+ real(8), dimension(:), allocatable :: MassPrefac, spectrum_freqs, freqs_smoothed 
+ real(8), dimension(:,:), allocatable :: freqs, r, coords, k_vectors
  real(8), dimension(:,:,:), allocatable :: all_SED_smoothed
  real(8), dimension(3,3) :: box
  real(8), dimension(:,:,:,:), allocatable :: eig_vecs
  real(4), dimension(:,:,:), allocatable :: velocities
- double complex, dimension(:,:,:), allocatable :: qdot
+ double complex, dimension(:), allocatable :: qdot
  double precision, parameter :: Cspeed=3.00d10 ! cm/s
  double precision, parameter :: ps2s=1d-12 ! 1ps in s
  character(len=200) :: model, fvel, feig, fcoord, fileheader
