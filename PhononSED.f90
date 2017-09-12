@@ -41,36 +41,31 @@ Program PhononSED
 
  if(pid .eq. 0)  call start_timer("total")
 
- call read_input_file
-
- !read in k-vectors we will be working with
- if(pid .eq. 0)  call start_timer("reading files")
-
- write(*, *) "reading eigenvector file... "
- call read_eigvector_file
-
- !read in velocities data
- write(*, *) "reading velocities file... "
- call read_LAAMPS_files
+ call read_input_files
 
  if(pid .eq. 0)  call stop_timer("reading files")
 
  !calculate/allocate variables
  call calculate_frequencies_and_smoothing
 
- !calculate equilibrium unit cell coordinates
- call r_unit_cell_coords
-
  !Calculate SEDs for different eigenvectors
  do ik = 1, Nk
-     do ie = 1, Neig
-         write(*, '(a,i4,a,i4,a,i4,a,i4)')  "Doing k vector", ik, " of ", Nk, " and eigenvector", ie, " of ", Neig
-         call eigen_projection_and_SED(eig_vecs(ik, ie, :, :), all_SED_smoothed(ik, ie, :), ik)
-     enddo
- enddo
+    do ie = 1, Neig
+        write(*, '(a,i4,a,i4,a,i4,a,i4)')  "Doing k vector", ik, " of ", Nk, " and eigenvector", ie, " of ", Neig
+
+        if (BTEMD) then
+            call BTE_MD(eig_vecs(ik, ie, :, :), all_SED_smoothed(ik, ie, :), ik, ie, all_corr_fns(ik, ie, :))
+        else
+            call eigen_projection_and_SED(eig_vecs(ik, ie, :, :), all_SED_smoothed(ik, ie, :), ik)
+        endif
+    enddo
+enddo
+
 
  !print SED
  if(pid .eq. 0)  call print_SED()
+
+ if (BTEMD) call print_corr_fns()
 
  !print timing report
  if(pid .eq. 0)  call print_timing_report(6)

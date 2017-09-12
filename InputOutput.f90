@@ -28,9 +28,14 @@ module InputOutput
 !------------------------------------------------------------
 !----------- Read input file parameters --------------------
 !------------------------------------------------------------
-subroutine read_input_file
+subroutine read_input_files
+ use dans_timer
  implicit none
  integer :: luninp, Nlines, EoF
+ real(8) :: a1, a2, a3, denom
+ real(8) :: MC = 12.011000, MN = 14.007200, MO = 15.999430, MH = 1.0080000
+ real(8) :: MMg = 24.305
+
 
 
  !call io_assign(luninp)
@@ -49,8 +54,15 @@ subroutine read_input_file
  read(luninp, *) READALL
  read(luninp, *) NPointsOut
  read(luninp, *) MaxFreqOut
+ read(luninp, *) BTEMD
+ read(luninp, *) GULPINPUT
+ read(luninp, *) fcoords
+ read(luninp, *) Ncorrptsout
+
  !call io_close(luninp)
 
+
+!-------------------- RDX  ------------------------------------------------
  if (model == 'RDX') then
     write(*,*) "Model is RDX"
     AtomsPerMolecule = 21
@@ -66,19 +78,60 @@ subroutine read_input_file
     idx = 1
     do i = 1, Nunitcells
         do j = 1, MoleculesPerUnitCell
-            idx = idx + AtomsPerMolecule
             MassPrefac(idx+0:idx+2)   = MC ! Carbon
             MassPrefac(idx+3:idx+8)   = MN ! Nitrogen
             MassPrefac(idx+9:idx+14)  = MO ! Oxygen
             MassPrefac(idx+15:idx+20) = MH ! Hydrogen
+            idx = idx + AtomsPerMolecule
         enddo
     enddo
     MassPrefac = sqrt(MassPrefac/real(Nunitcells))
 
-    lattice_vector = (/ 13.18200, 11.5740, 10.709 /)
+    a1 = 13.18200 !x
+    a2 = 11.5740  !y
+    a3 = 10.709   !z
+    lattice_vector = (/ a1, a2, a3 /)
+
+    denom = a1*a2*a3
+    recip_lat_vec = (/ a2*a3 ,a1*a3 , a2*a3 /) !! Perpendicularity assumed!!
+    recip_lat_vec = TwoPi*recip_lat_vec/denom
  endif
 
- !------------- read length of velocities file ----------------------
+
+!-------------------- Magnesium Oxide (MgO) -------------------------------
+ if (model == 'MgO') then
+    write(*,*) "Model is MgO"
+    AtomsPerMolecule = 8
+    MoleculesPerUnitCell = 1
+    AtomsPerUnitCell = AtomsPerMolecule*MoleculesPerUnitCell !168
+    Natoms = Nunitcells*AtomsPerUnitCell
+
+    allocate(MassPrefac(Natoms))
+    allocate(freqs(Nk, Neig))
+    allocate(eig_vecs(Nk, Neig, Natoms, 3))
+
+    !build array of masses for ALL atoms
+    idx = 1
+    do i = 1, Nunitcells
+        do j = 1, MoleculesPerUnitCell
+            MassPrefac(idx+0:idx+3)   = MMg ! Carbon
+            MassPrefac(idx+4:idx+7)   = MO ! Nitrogen
+            idx = idx + AtomsPerMolecule
+        enddo
+    enddo
+    MassPrefac = sqrt(MassPrefac/real(Nunitcells))
+
+    a1 = 4.212000  !x
+    a2 = 4.212000  !y
+    a3 = 4.212000  !z
+    lattice_vector = (/ a1, a2, a3 /)
+
+    denom = a1*a2*a3
+    recip_lat_vec = (/ a2*a3 ,a1*a3 , a2*a3 /) !! Perpendicularity assumed!!
+    recip_lat_vec = TwoPi*recip_lat_vec/denom
+ endif
+
+ !------------- read length of velocities file
  if (READALL) then
     write(*,*) "Reading size of file ..."
 
@@ -103,12 +156,24 @@ subroutine read_input_file
 endif
 
  allocate(qdot(Ntimesteps))
- allocate(r(Natoms, 3))
  allocate(k_vectors(Nk, 3))
 
- !-------------- set up r-vectors (to be filled in) ------
 
-end subroutine read_input_file
+ !read in k-vectors we will be working with
+ if(pid .eq. 0)  call start_timer("reading files")
+
+ write(*, *) "reading eigenvector file... "
+ call read_eigvector_file
+
+ !read in necessary velocities & coordinate data
+ write(*, *) "reading velocities file... "
+ if (GULPINPUT) then
+     call read_GULP_trajectory_file
+  else
+     call read_LAAMPS_files
+ endif
+
+end subroutine read_input_files
 
 
 !------------------------------------------------------------
@@ -142,8 +207,20 @@ subroutine read_eigvector_file()
                  eigenvectors in the input file."
     stop
  endif
+
  do ik = 1, Nk
      read(luneig, '(a,3f9.6)') junk, (k_vectors(ik, ix), ix = 1,3)
+     k_vectors(ik, 1) = k_vectors(ik, 1)*(recip_lat_vec(1))!/TwoPi)
+     k_vectors(ik, 2) = k_vectors(ik, 2)*(recip_lat_vec(2))!/TwoPi)
+     k_vectors(ik, 3) = k_vectors(ik, 3)*(recip_lat_vec(3))!/TwoPi)
+
+!    do ie = 1, 200
+!        read(luneig, *) !Mode    x
+!        read(luneig, *) !freq
+!        do ia = 1, AtomsPerUnitCell
+!            read(luneig, *)
+!        enddo
+!     enddo
 
      do ie = 1, Neig
         read(luneig, *) !Mode    x
@@ -154,26 +231,28 @@ subroutine read_eigvector_file()
             mag = mag + eig_vecs(ik, ie, ia, 1)**2 + eig_vecs(ik, ie, ia, 2)**2 + eig_vecs(ik, ie, ia, 3)**2
         enddo
         mag = sqrt(mag)
-        eig_vecs(ik, ie, :, :) = eig_vecs(ik, ie, :, :)/mag !make a unit vector
-        do i = 1, Nunitcells
+        eig_vecs(ik, ie, 1:AtomsPerUnitCell, :) = eig_vecs(ik, ie, 1:AtomsPerUnitCell, :)/mag !make a unit vector (normalization)
+
+        do i = 2, Nunitcells
             j = AtomsPerUnitCell
-            eig_vecs(ik, ie, i*j+1:i*j+j,:) = eig_vecs(ik, ie, 1:j, :) !fill in rest
+            eig_vecs(ik, ie, (i-1)*j+1:(i-1)*j+j,:) = eig_vecs(ik, ie, 1:j, :) !fill in rest
         enddo
      enddo
 
-     do ie = Neig+1, Neig_file
+     do ie = Neig, Neig_file
         read(luneig, *) !Mode    x
-        read(luneig, *) !freq
+        read(luneig, *) !freqs
         do ia = 1, AtomsPerUnitCell
             read(luneig, *)
         enddo
      enddo
+
  enddo
 
 end subroutine read_eigvector_file
 
 !-----------------------------------------------------------------------
-!----------------- Read one frame of .xyz velocities file -------------
+!----------------- Read in necessary LAMMPS files ---------------------
 !-----------------------------------------------------------------------
 subroutine read_LAAMPS_files
  implicit none
@@ -185,21 +264,83 @@ subroutine read_LAAMPS_files
 
      allocate(velocities(Ntimesteps, Natoms, 3))
      do t = 1, Ntimesteps
+         if (mod(t,1000).eq.0) write(*,*) t, Ntimesteps
          velocities(t, :, :) = one_frame(lun)
      enddo
 
      call io_close(lun)
 
-     !------------- read coordinates file ------
+     !------------- read equilibrium coordinates file ------
      call io_assign(lun)
      open(lun, file=fcoord, status='old', action='read')
 
-     allocate(coords(Natoms, 3))
-     coords = one_frame(lun)
+     allocate(r_eq(Natoms, 3))
+     r_eq = one_frame(lun)
 
      call io_close(lun)
 
+     !---------- read in coordinates data for BTEMD --------
+     if (BTEMD) then
+         write(*, *) "reading coordinates file... "
+
+         call io_assign(lun)
+         open(lun, file=fcoords, status='old', action='read')
+
+         allocate(coordinates(Ntimesteps, Natoms, 3))
+         do t = 1, Ntimesteps
+             if (mod(t,1000).eq.0) write(*,*) t, Ntimesteps
+             coordinates(t, :, :) = one_frame(lun)
+         enddo
+
+         call io_close(lun)
+     endif !BTEMD
+
+      !----------------- calculate equilibrium unit cell coordinates
+      !do ia = 1, Natoms
+      !     do ix = 1, 3
+      !         r(ia, ix) =  floor(r_eq(ia,ix)/lattice_vector(ix))*lattice_vector(ix)
+      !     enddo
+      !enddo
+
 end subroutine read_LAAMPS_files
+
+
+!-----------------------------------------------------------------------
+!----------------- Read in GULP trajectory file -----------------------
+!-----------------------------------------------------------------------
+subroutine read_GULP_trajectory_file
+ implicit none
+ integer :: lun
+
+     !------------- read velocities file ------
+     call io_assign(lun)
+     open(lun, file=fvel, status='old', action='read')
+
+     allocate(velocities(Ntimesteps, Natoms, 3))
+     do t = 1, Ntimesteps
+         if (mod(t,10000).eq.0) write(*,*) "reading", t, Ntimesteps
+         do i = 1, 6
+            read(lun, *)
+         enddo
+         if (t .eq. 1) then
+             do ia = 1, Natoms
+                 read(lun, *) (r_eq(ia, ix), ix=1,3)
+             enddo
+         else
+             do ia = 1, Natoms
+                 read(lun, *)
+             enddo
+         endif
+         do i = 1, Natoms
+             read(lun, *) (velocities(t, ia, ix), ix=1,3)
+         enddo
+         do ia = 1, 2*Natoms+2
+             read(lun, *) !skip derivatives & site energies data
+         enddo
+     enddo
+     call io_close(lun)
+
+end subroutine read_GULP_trajectory_file
 
 
 
@@ -277,6 +418,34 @@ enddo !ie = 1, Neig
  call io_close(lunout)
 
 end subroutine print_SED
+
+
+!---------------------------------------------------------------------
+!-----------------  Print SED ---------------------------------------
+!---------------------------------------------------------------------
+subroutine print_corr_fns
+ implicit none
+
+ do ik = 1, Nk
+
+     call io_open(lunout, filename=trim(fileheader)//"_"//trim(str(ik))//"_cor_fun.dat")
+
+     do i = 1, Ncorrptsout
+         write(lunout, '(f12.4,1x)', advance='no') i*timestep
+
+         do ie = 1, Neig-1
+             write(lunout, '(e12.6,1x)', advance='no') all_corr_fns(ik, ie, i)
+         enddo
+
+         write(lunout, '(e12.6)', advance='yes') all_corr_fns(ik, Neig, i)
+     enddo
+     call io_close(lunout)
+enddo !ie = 1, Neig
+
+
+
+
+end subroutine print_corr_fns
 
 
 

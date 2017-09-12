@@ -23,21 +23,21 @@ module main_vars
  implicit none
  integer :: Natoms, Nunitcells, AtomsPerMolecule, MoleculesPerUnitCell, AtomsPerUnitCell
  integer :: Neig, lun, luneig, lunout, ik, ia, i, j, idx, ix, Ntimesteps, t, Nk, ie
- integer :: NPointsOut, length, BlockSize
- logical :: READALL
+ integer :: NPointsOut, length, BlockSize, NFullSEDPoints, Ncorrptsout
+ logical :: READALL, FULLSED, BTEMD, GULPINPUT
+ real(8), parameter :: TwoPi = 2*3.14159d0
  real(8) :: timestep, MaxFreqOut, MinFreqOut
- real(8) :: MC = 12.011000, MN = 14.007200, MO = 15.999430, MH = 1.0080000
- real(8), dimension(3) :: lattice_vector
- real(8), dimension(:), allocatable :: MassPrefac, spectrum_freqs, freqs_smoothed 
- real(8), dimension(:,:), allocatable :: freqs, r, coords, k_vectors
- real(8), dimension(:,:,:), allocatable :: all_SED_smoothed
+ real(8), dimension(3) :: lattice_vector, recip_lat_vec
+ real(8), dimension(:), allocatable :: MassPrefac, spectrum_freqs, freqs_smoothed
+ real(8), dimension(:,:), allocatable :: freqs, r, r_eq, k_vectors
+ real(8), dimension(:,:,:), allocatable :: all_SED_smoothed, all_corr_fns
  real(8), dimension(3,3) :: box
  real(8), dimension(:,:,:,:), allocatable :: eig_vecs
- real(4), dimension(:,:,:), allocatable :: velocities
+ real(4), dimension(:,:,:), allocatable :: velocities, coordinates
  double complex, dimension(:), allocatable :: qdot
  double precision, parameter :: Cspeed=3.00d10 ! cm/s
  double precision, parameter :: ps2s=1d-12 ! 1ps in s
- character(len=200) :: model, fvel, feig, fcoord, fileheader
+ character(len=200) :: model, fvel, feig, fcoord, fileheader, fcoords
  !MPI variables
  integer :: Nnodes=1, pid=0, ierr=0
  integer :: status2(MPI_STATUS_SIZE)
