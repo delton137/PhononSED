@@ -1,0 +1,47 @@
+At line 176 of file InputOutput.f90 (unit = 10, file = '/Users/dan/eig2x2x2unrelaxed.eig')
+Fortran runtime error: Bad real number in item 1 of list input
+
+Error termination. Backtrace:
+#0  0x10850840c
+#1  0x108509115
+#2  0x108509889
+#3  0x10863ea6a
+#4  0x10864088d
+#5  0x1086420c9
+#6  0x1084e0346
+#7  0x1084e359d
+#8  0x1084e395e
+running on    1 nodes
+ Model is RDX
+ reading eigenvector file... 
+File contains 504 eigenvectors per k-point
+running on    1 nodes
+ Model is RDX
+ reading eigenvector file... 
+File contains 504 eigenvectors per k-point
+ reading velocities file... 
+Doing k vector   1 of    8 and eigenvector   1 of    1
+Doing k vector   2 of    8 and eigenvector   1 of    1
+Doing k vector   3 of    8 and eigenvector   1 of    1
+Doing k vector   4 of    8 and eigenvector   1 of    1
+Doing k vector   5 of    8 and eigenvector   1 of    1
+Doing k vector   6 of    8 and eigenvector   1 of    1
+Doing k vector   7 of    8 and eigenvector   1 of    1
+Doing k vector   8 of    8 and eigenvector   1 of    1
+ #-----------  timing report ----------------------------
+                        total:    0 hours   5 minutes           4.7940 seconds
+                reading files:    0 hours   3 minutes          38.0680 seconds
+At line 46 of file InputOutput.f90 (unit = 5, file = 'stdin')
+Fortran runtime error: Invalid string input in item 1
+
+Error termination. Backtrace:
+#0  0x10808d40c
+#1  0x10808e115
+#2  0x10808e889
+#3  0x1081c53be
+#4  0x1081c5947
+#5  0x1081c70c9
+#6  0x108060b1e
+#7  0x108063533
+#8  0x10806395e
+running on    1 nodes

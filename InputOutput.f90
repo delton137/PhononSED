@@ -53,7 +53,6 @@ subroutine read_input_files
  read(luninp, *) timestep
  read(luninp, *) READALL
  read(luninp, *) NPointsOut
- read(luninp, *) MaxFreqOut
  read(luninp, *) BTEMD
  read(luninp, *) GULPINPUT
  read(luninp, *) fcoords
@@ -239,7 +238,8 @@ subroutine read_eigvector_file()
         enddo
      enddo
 
-     do ie = Neig, Neig_file
+     ! read any remaining eigenvectors ls
+     do ie = Neig+1, Neig_file
         read(luneig, *) !Mode    x
         read(luneig, *) !freqs
         do ia = 1, AtomsPerUnitCell
@@ -311,28 +311,37 @@ end subroutine read_LAAMPS_files
 subroutine read_GULP_trajectory_file
  implicit none
  integer :: lun
+ character(20) :: junk
 
      !------------- read velocities file ------
      call io_assign(lun)
-     open(lun, file=fvel, status='old', action='read')
+     open(lun, file=fcoords, status='old', action='read')
 
      allocate(velocities(Ntimesteps, Natoms, 3))
+     allocate(r_eq(Natoms, 3))
+
+
+     read(lun, *)
+     read(lun, *)
      do t = 1, Ntimesteps
-         if (mod(t,10000).eq.0) write(*,*) "reading", t, Ntimesteps
-         do i = 1, 6
-            read(lun, *)
+         if (mod(t,1000).eq.0) write(*,*) "reading", t, Ntimesteps
+         do i = 1, 3
+            read(lun, *) junk
          enddo
          if (t .eq. 1) then
              do ia = 1, Natoms
-                 read(lun, *) (r_eq(ia, ix), ix=1,3)
+                 read(lun, '(1ES26.16E2)', ADVANCE='NO') r_eq(ia, 1)
+                 read(lun, '(1ES26.16E2)', ADVANCE='NO')  r_eq(ia, 2)
+                 read(lun, '(1ES26.16E2)', ADVANCE='YES')  r_eq(ia, 3)
              enddo
          else
              do ia = 1, Natoms
                  read(lun, *)
              enddo
          endif
-         do i = 1, Natoms
-             read(lun, *) (velocities(t, ia, ix), ix=1,3)
+         read(lun, *)
+         do ia = 1, Natoms
+             read(lun, '(3ES26.16E2)') (velocities(t, ia, ix), ix=1,3)
          enddo
          do ia = 1, 2*Natoms+2
              read(lun, *) !skip derivatives & site energies data

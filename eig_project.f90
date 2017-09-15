@@ -29,42 +29,39 @@ module eig_project
 !-----------------------------------------------------------------------
 subroutine calculate_frequencies_and_smoothing
  implicit none
- integer :: PointsAvailable
+ integer :: PointsAvailable, nfft
  real(8) :: MaxFreqPossible
 
  length = Ntimesteps
 
- allocate(spectrum_freqs(Ntimesteps))
-
- do i = 1, Ntimesteps
-   spectrum_freqs(i) = dble(i)/(timestep*length)
- enddo
-
- spectrum_freqs = spectrum_freqs/(ps2s*Cspeed) !convert to 1/cm
-
- allocate(freqs_smoothed(NPointsOut))
-
- BlockSize = floor(real(length/NPointsOut))
-
- do i = 1, NPointsOut
-    freqs_smoothed(i) = sum(spectrum_freqs((i-1)*BlockSize+1:i*BlockSize) ) /BlockSize
- enddo
-
  !------------ figure out variables for smoothing --------------
- MinFreqOut =  spectrum_freqs(2) !smallest possible frequency
- MaxFreqPossible = spectrum_freqs(Ntimesteps) !largest frequency
+ nfft = 2*2**(    floor( dlog(  dble(Ntimesteps)  )/dlog(2d0)  )  + 1 )
 
- if (MaxFreqOut .gt. MaxFreqPossible) MaxFreqOut = MaxFreqPossible
+ !MinFreqOut =  1/(timestep*nfft*Cspeed*ps2s) !smallest possible frequency
+ !MaxFreqPossible = Ntimesteps/(timestep*nfft*Cspeed*ps2s) !largest frequency
 
- PointsAvailable = floor(MaxFreqOut/MinFreqOut) !max number possible
+ PointsAvailable = Ntimesteps
 
  if (PointsAvailable .lt. NPointsOut) NPointsOut = PointsAvailable
 
- BlockSize = floor(real(Length)/real(NPointsOut))
+ BlockSize = floor(real(PointsAvailable/NPointsOut))
+
+ !------------ allocations --------------
+
+ allocate(freqs_smoothed(NPointsOut))
 
  allocate(all_SED_smoothed(Nk, Neig, NPointsOut))
 
  if (BTEMD) allocate(all_corr_fns(Nk, Neig, Ncorrptsout))
+
+ !------------ find frequencies for smoothed data ---------------
+
+ do i = 0, NPointsOut-1
+    freqs_smoothed(i) = ( floor((i+.5)*BlockSize) )/(timestep*nfft) !use central frequency
+ enddo
+
+ freqs_smoothed = freqs_smoothed/(Cspeed*ps2s) !convert to 1/cm
+
 
 end subroutine calculate_frequencies_and_smoothing
 
@@ -101,9 +98,6 @@ subroutine eigen_projection_and_SED(eig, SED_smoothed, ik)
  enddo
 
 end subroutine eigen_projection_and_SED
-
-
-
 
 !------------------------------------------------------------------------------
 !- "BTE_MD" method (time domain method from energy-energy correlation fun.) --
