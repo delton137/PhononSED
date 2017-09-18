@@ -47,7 +47,6 @@ subroutine calculate_frequencies_and_smoothing
  BlockSize = floor(real(PointsAvailable/NPointsOut))
 
  !------------ allocations --------------
-
  allocate(freqs_smoothed(NPointsOut))
 
  allocate(all_SED_smoothed(Nk, Neig, NPointsOut))
@@ -57,7 +56,7 @@ subroutine calculate_frequencies_and_smoothing
  !------------ find frequencies for smoothed data ---------------
 
  do i = 0, NPointsOut-1
-    freqs_smoothed(i) = ( floor((i+.5)*BlockSize) )/(timestep*nfft) !use central frequency
+    freqs_smoothed(i+1) = ( floor((i+.5)*BlockSize) )/(timestep*nfft) !use central frequency
  enddo
 
  freqs_smoothed = freqs_smoothed/(Cspeed*ps2s) !convert to 1/cm
@@ -81,9 +80,9 @@ subroutine eigen_projection_and_SED(eig, SED_smoothed, ik)
  !-------- projection
  do t = 1, Ntimesteps
      qdot(t) = 0
-     do ia = 1, Natoms
+     do ia = 1, Natoms/8
          part1 = MassPrefac(ia)*dot_product(velocities(t, ia, :), eig(ia, :))
-         qdot(t) = qdot(t) + part1*exp(  dcmplx(0, 1)*dot_product(k_vectors(ik, :), r_eq(ia, :))  )
+         qdot(t) = qdot(t) + part1*exp(  dcmplx(0, 1)*dot_product(k_vectors(ik, :), r(ia, :))  )
      enddo
  enddo
 
@@ -98,6 +97,8 @@ subroutine eigen_projection_and_SED(eig, SED_smoothed, ik)
  enddo
 
 end subroutine eigen_projection_and_SED
+
+
 
 !------------------------------------------------------------------------------
 !- "BTE_MD" method (time domain method from energy-energy correlation fun.) --

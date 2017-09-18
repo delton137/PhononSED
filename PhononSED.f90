@@ -34,10 +34,10 @@ Program PhononSED
 
  !---------------------- Start MPI and find number of nodes and pid --------------
  !call MPI_Init(ierr)
- if (.not. (ierr .eq. 0)) write(*,*) "WARNING: MPI did not intialize correctly."
- call MPI_Comm_size(MPI_COMM_WORLD, Nnodes, ierr)
- call MPI_Comm_rank(MPI_COMM_WORLD, pid, ierr)
- write(*, '(a,i4,a)') "running on ", Nnodes, " nodes"
+! if (.not. (ierr .eq. 0)) write(*,*) "WARNING: MPI did not intialize correctly."
+! call MPI_Comm_size(MPI_COMM_WORLD, Nnodes, ierr)
+! call MPI_Comm_rank(MPI_COMM_WORLD, pid, ierr)
+! write(*, '(a,i4,a)') "running on ", Nnodes, " nodes"
 
  if(pid .eq. 0)  call start_timer("total")
 

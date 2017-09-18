@@ -120,9 +120,9 @@ subroutine read_input_files
     enddo
     MassPrefac = sqrt(MassPrefac/real(Nunitcells))
 
-    a1 = 4.212000  !x
-    a2 = 4.212000  !y
-    a3 = 4.212000  !z
+    a1 = 4.211986  !x
+    a2 = 4.211986  !y
+    a3 = 4.211986  !z
     lattice_vector = (/ a1, a2, a3 /)
 
     denom = a1*a2*a3
@@ -157,7 +157,6 @@ endif
  allocate(qdot(Ntimesteps))
  allocate(k_vectors(Nk, 3))
 
-
  !read in k-vectors we will be working with
  if(pid .eq. 0)  call start_timer("reading files")
 
@@ -171,6 +170,15 @@ endif
   else
      call read_LAAMPS_files
  endif
+
+ !---- calculate "equilibrium unit cell coordinates"
+ !---- this calculates the coordinate for the corner of the unit cell each atom is in
+ allocate(r(Natoms, 3))
+ do ia = 1, Natoms
+      do ix = 1, 3
+          r(ia, ix) =  floor(r_eq(ia,ix)/lattice_vector(ix))*lattice_vector(ix)
+       enddo
+ enddo
 
 end subroutine read_input_files
 
@@ -232,11 +240,16 @@ subroutine read_eigvector_file()
         mag = sqrt(mag)
         eig_vecs(ik, ie, 1:AtomsPerUnitCell, :) = eig_vecs(ik, ie, 1:AtomsPerUnitCell, :)/mag !make a unit vector (normalization)
 
+        !copy eigenvectors from 0,0,0 unit cell to other unit cells
         do i = 2, Nunitcells
             j = AtomsPerUnitCell
             eig_vecs(ik, ie, (i-1)*j+1:(i-1)*j+j,:) = eig_vecs(ik, ie, 1:j, :) !fill in rest
         enddo
      enddo
+
+     do ia = 1, Natoms
+         write(*,*)  eig_vecs(1, 1, ia, :)
+     enddo 
 
      ! read any remaining eigenvectors ls
      do ie = Neig+1, Neig_file
@@ -295,13 +308,6 @@ subroutine read_LAAMPS_files
          call io_close(lun)
      endif !BTEMD
 
-      !----------------- calculate equilibrium unit cell coordinates
-      !do ia = 1, Natoms
-      !     do ix = 1, 3
-      !         r(ia, ix) =  floor(r_eq(ia,ix)/lattice_vector(ix))*lattice_vector(ix)
-      !     enddo
-      !enddo
-
 end subroutine read_LAAMPS_files
 
 
@@ -329,11 +335,9 @@ subroutine read_GULP_trajectory_file
             read(lun, *) junk
          enddo
          if (t .eq. 1) then
-             do ia = 1, Natoms
-                 read(lun, '(1ES26.16E2)', ADVANCE='NO') r_eq(ia, 1)
-                 read(lun, '(1ES26.16E2)', ADVANCE='NO')  r_eq(ia, 2)
-                 read(lun, '(1ES26.16E2)', ADVANCE='YES')  r_eq(ia, 3)
-             enddo
+              do ia = 1, Natoms
+                  read(lun, '(3ES26.16E2)') (r_eq(ia, ix), ix=1,3)
+              enddo
          else
              do ia = 1, Natoms
                  read(lun, *)
