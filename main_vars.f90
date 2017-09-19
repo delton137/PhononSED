@@ -23,7 +23,7 @@ module main_vars
  implicit none
  integer :: Natoms, Nunitcells, AtomsPerMolecule, MoleculesPerUnitCell, AtomsPerUnitCell
  integer :: Neig, lun, luneig, lunout, ik, ia, i, j, idx, ix, Ntimesteps, t, Nk, ie
- integer :: NPointsOut, length, BlockSize, NFullSEDPoints, Ncorrptsout
+ integer :: NPointsOut, length, BlockSize, NFullSEDPoints, Ncorrptsout, trun
  logical :: READALL, FULLSED, BTEMD, GULPINPUT
  real(8), parameter :: TwoPi = 2*3.14159d0
  real(8) :: timestep, MaxFreqOut, MinFreqOut

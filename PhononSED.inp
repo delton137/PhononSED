@@ -6,10 +6,10 @@
 '/Users/dan/velocities.dat'       ! LAMMPS velocities data file
 '/Users/dan/eigMgO.eig'        ! GULP eigenvectors data file
 '/Users/dan/coords.dat'  'example_coords.dat'     ! LAMMPS coordinates file
-20000                   ! # of timesteps to read in
+200000                   ! # of timesteps to read in
 .02                      ! timestep (ps)
 .f.                      ! Read entire file until end?
-1000                     ! N points to output in (smoothed) spectra
+50000                     ! N points to output in (smoothed) spectra
 .f.                      ! BTE-MD method (use energy-energy correlation)(requires matching, currently not implemented)
 .t.                      ! GULP trajectory file
 '/Users/dan/MgO4ns_1x1x1.trg'  ! LAMMPS coordinates file or GULP trajectory file

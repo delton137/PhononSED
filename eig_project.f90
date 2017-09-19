@@ -29,18 +29,19 @@ module eig_project
 !-----------------------------------------------------------------------
 subroutine calculate_frequencies_and_smoothing
  implicit none
- integer :: PointsAvailable, nfft
+ integer :: PointsAvailable
  real(8) :: MaxFreqPossible
 
  length = Ntimesteps
 
  !------------ figure out variables for smoothing --------------
- nfft = 2*2**(    floor( dlog(  dble(Ntimesteps)  )/dlog(2d0)  )  + 1 )
+ !for fft - has to be power of 2
+ trun = 2**(    floor( dlog(  dble(Ntimesteps)  )/dlog(2d0)  )  + 1 )
 
- !MinFreqOut =  1/(timestep*nfft*Cspeed*ps2s) !smallest possible frequency
- !MaxFreqPossible = Ntimesteps/(timestep*nfft*Cspeed*ps2s) !largest frequency
+ !MinFreqOut =  1/(timestep*trun*Cspeed*ps2s) !smallest possible frequency
+ !MaxFreqPossible = 1/(2*timestep) !largest frequency
 
- PointsAvailable = Ntimesteps
+ PointsAvailable = trun/2 !spectrum will be folded over this point
 
  if (PointsAvailable .lt. NPointsOut) NPointsOut = PointsAvailable
 
@@ -56,7 +57,7 @@ subroutine calculate_frequencies_and_smoothing
  !------------ find frequencies for smoothed data ---------------
 
  do i = 0, NPointsOut-1
-    freqs_smoothed(i+1) = ( floor((i+.5)*BlockSize) )/(timestep*nfft) !use central frequency
+    freqs_smoothed(i+1) = ( floor((i+.5)*BlockSize) )/(timestep*trun) !use central frequency
  enddo
 
  freqs_smoothed = freqs_smoothed/(Cspeed*ps2s) !convert to 1/cm
@@ -73,21 +74,21 @@ subroutine eigen_projection_and_SED(eig, SED_smoothed, ik)
  integer, intent(in) :: ik
  real(8), dimension(Natoms, 3), intent(in) :: eig !!Eigenvector to project onto
  real(8), dimension(NpointsOut), intent(out) :: SED_smoothed
- real(8), dimension(Ntimesteps) :: SED
+ real(8), dimension(trun) :: SED
  real(8) :: part1
 
 
  !-------- projection
  do t = 1, Ntimesteps
      qdot(t) = 0
-     do ia = 1, Natoms/8
+     do ia = 1, Natoms
          part1 = MassPrefac(ia)*dot_product(velocities(t, ia, :), eig(ia, :))
          qdot(t) = qdot(t) + part1*exp(  dcmplx(0, 1)*dot_product(k_vectors(ik, :), r(ia, :))  )
      enddo
  enddo
 
 !--------- calculate Spectral Energy Density
- call calc_DFT_squared(qdot, SED, length)
+ call calc_DFT_squared(qdot, SED, length, trun)
 
  SED = (1d0/3.14159d0)*SED/timestep !!*(1d0/(2*length) ) division performed in DFT routine
 
@@ -147,30 +148,26 @@ end subroutine BTE_MD
 !------------------------------------------------------------------------
 !-------  Compute DFT squared (discrete Fourier transform) using four1.f
 !------------------------------------------------------------------------
-subroutine calc_DFT_squared(input, output, tread)
+subroutine calc_DFT_squared(input, output, tread, trun)
  Implicit none
- integer, intent(in) :: tread
+ integer, intent(in) :: tread, trun
  double complex, dimension(tread), intent(in) :: input
- double precision, dimension(tread), intent(out) ::  output
+ double precision, dimension(trun), intent(out) ::  output
  complex, dimension(:), allocatable :: transformed
- integer :: trun
-
- !zero padding
- trun = 2**(    floor( dlog(  dble(tread)  )/dlog(2d0)  )  + 1 )
 
  if (.not. allocated(transformed)) then
- 	allocate(transformed(0:2*trun-1))
- elseif (.not. (2*trun .eq. size(transformed))) then
+ 	allocate(transformed(0:trun-1))
+ elseif (.not. (trun .eq. size(transformed))) then
 	deallocate(transformed)
-	allocate(transformed(0:2*trun-1))
+	allocate(transformed(0:trun-1))
  endif
 
  transformed = 0
  transformed(0:tread-1) = input
 
- call four1(transformed,2*trun,1)
+ call four1(transformed, trun, 1)
 
- output=dble(transformed(0:tread-1)*CONJG(transformed(0:tread-1)))/(2d0*trun)
+ output=dble(transformed(0:trun-1)*CONJG(transformed(0:trun-1)))/(trun)
 
 end subroutine calc_DFT_squared
 
