@@ -45,7 +45,9 @@ def fit_function(dataX, dataY, fit_fn, params, bounds, differential_evolution=Fa
             Returns:
                 The cost (real scalar)
         """
-        diff = (dataY - fit_fn(dataX, params))/dataY
+        #diff = (dataY - fit_fn(dataX, params))/dataY
+        diff = np.log10(dataY) - np.log10(fit_fn(dataX, params))
+        #diff = dataY - fit_fn(dataX, params)
 
         return np.dot(diff, diff)
 
@@ -66,67 +68,81 @@ def fit_function(dataX, dataY, fit_fn, params, bounds, differential_evolution=Fa
 
     return params
 
-
+# -----------------------------------------------------------------------------
 # --------------- main code --------------------------------------------------
+# -----------------------------------------------------------------------------
 
-peak_freqs = np.loadtxt('MgOtest_frequencies.dat')
-data = np.loadtxt('MgOtest_1_SED.dat')
+#peak_freqs = np.loadtxt('MgOtest1x1x1_frequencies.dat')
+#data = np.loadtxt('MgOtest1x1x1_NVT_1_SED.dat')
 
-num_modes = 5 #data.shape[1]-3 #number of modes, dropping the 3 acoustic modes
+peak_freqs = np.loadtxt('MgOtest1x1x1_NVT_frequencies.dat')
+data = np.loadtxt('MgOtest1x1x1_NVT_1_SED.dat')
+
+
+num_modes = data.shape[1]-4 #number of modes, dropping the 3 acoustic modes and the one column for time data
 num_freqs = data.shape[0]
 print("read in", num_modes, " non-acoustic modes at ", num_freqs, "frequency points")
 
 freqs = data[:,0]
 
-mode_data = data[:, 4:]
+mode_data = data[:, 3:]
 peak_freqs = peak_freqs[3:]
+print(peak_freqs)
 
 allparams = np.zeros([4, num_modes])
 lifetimes = np.zeros([num_modes, 1])
 
-sw = 5 #search width on each side for fitting, in 1/cm
-freq_step = freqs[4]-freqs[3]
-iw = np.floor(sw/freq_step) #indexwidth
+sw = 30 #search width on each side for fitting, in 1/cm
+freq_step = freqs[5]-freqs[4]
+iw = int(np.floor(sw/freq_step)) #indexwidth
 
-pw = 10 #plottings width on each side for fitting, in 1/cm
+pw = 100 #plottings width on each side for fitting, in 1/cm
 npts = 500
 
 for m in range(0, num_modes):
     max_height = max(mode_data[:,m])
     idx_max = list(mode_data[:,m]).index(max_height)
-    
-    if ((idx_max - iw) < 0): 
+    freq_max = idx_max*freq_step + freq_step
+
+    if (abs(freq_max-peak_freqs[m]) > sw):
+        print("WARNING : for mode ", m, " the location of maximum height is not near GULP value!!")
+        print(freq_max, "vs", peak_freqs[m])
+        idx_max = peak_freqs[m]/freq_step - 1
+
+    if (idx_max > len(mode_data[:,1])-1):
+        idx_max = len(mode_data[:,1])-1
+        print("WARNING: according to GULP, peak is at higher freq than avail in file")
+
+    if ((idx_max - iw) < 0):
         iw = idx_max - 1
 
     freqs_2_fit = freqs[idx_max-iw:idx_max+iw]
-    
-    print(min(freqs_2_fit), max(freqs_2_fit))
-    
+
     Y_2_fit = mode_data[idx_max-iw:idx_max+iw, m]
 
     w0 = freqs[idx_max]
-    
+
     params = [max_height, w0, 1, 0]
     if (w0 < sw):
         sw = w0 - 1
-    bounds = [(max_height/10, 10*max_height), (w0 - sw, w0 + sw), (.1, 10 ), (0, 0)]
+    bounds = [(max_height/10, 10*max_height), (w0 - sw, w0 + sw), (.001, 10 ), (0, 0)]
     params = fit_function(freqs_2_fit, Y_2_fit, Lorentzian, params, bounds, verbose=False)
-    
-    print(params)
+
     allparams[:, m] = params
-    lifetimes[m] = 1/(params[2]*2.99*1e10)
-    
-print(lifetimes/1e-9)
+    lifetimes[m] = (1/(params[2]*2.99*1e10))/(1e-9)  #lifetimes in ps
 
 #%%----- plotting ------------------------------------------------------------
-plt.clf()
+num_modes_plot = 3#num_modes
+start_plot = 31
 
-for m in range(0, num_modes):
+for m in range(start_plot , start_plot +num_modes_plot):
 
-    max_height = max(mode_data[:,m])
-    idx_max = list(mode_data[:,m]).index(max_height)
-    
-    if ((idx_max - iw) < 0): 
+    #max_height = max(mode_data[:,m])
+    #idx_max = list(mode_data[:,m]).index(max_height)
+    idx_max = peak_freqs[m]/freq_step - 1 #center on GULP frequencies
+
+
+    if ((idx_max - iw) < 0):
         iw = idx_max - 1
 
     freqs_2_fit = freqs[idx_max-iw:idx_max+iw]
@@ -135,19 +151,30 @@ for m in range(0, num_modes):
     xmax = freqs[idx_max] + pw
     modelX = np.linspace(xmin, xmax, npts)
     modelXfit = np.linspace(min(freqs_2_fit), max(freqs_2_fit), npts)
-    
-    modelY = Lorentzian(modelX, params)
-    modelYfit = Lorentzian(modelXfit, params)
 
+    modelY = Lorentzian(modelX, allparams[:, m] )
+    modelYfit = Lorentzian(modelXfit, allparams[:, m] )
 
     Y = mode_data[:, m]
-    
-    plt.subplot(np.ceil(float(num_modes)/3.0), 3, m+1)
+
+    ax = plt.subplot(np.ceil(float(num_modes_plot)/3.0), 3, m+1-start_plot)
     plt.plot(freqs, Y, "g", modelX, modelY,"b-", modelXfit, modelYfit,"y-")
     plt.axvline(x=peak_freqs[m], color='k', linestyle='--')
     plt.xlim([xmin, xmax])
     plt.xlabel(r"$\omega$ (cm$^{-1}$)")
     plt.ylabel(r"")
     plt.yscale('log')
+    plt.ylim([.1,max([max(Y),max(modelYfit)])])
+    ps_label = ("%6.5f" % lifetimes[m])
+    plt.text(.55,.8, ps_label+" ps", fontsize = 10, transform=ax.transAxes)
 
+
+plt.show(block=True)
+
+
+plt.figure(2)
+plt.plot(peak_freqs, lifetimes, '*')
+plt.yscale('log')
+plt.xlabel(r"$\omega$ (cm$^{-1}$)")
+plt.ylabel(r"lifetime (ps)")
 plt.show(block=True)

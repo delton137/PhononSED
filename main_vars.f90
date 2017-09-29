@@ -26,9 +26,10 @@ module main_vars
  integer :: NPointsOut, length, BlockSize, NFullSEDPoints, Ncorrptsout, trun
  logical :: READALL, FULLSED, BTEMD, GULPINPUT
  real(8), parameter :: TwoPi = 2*3.14159d0
- real(8) :: timestep, MaxFreqOut, MinFreqOut
+ real(8) :: timestep, MaxFreqOut, MinFreqOut, tau_window
  real(8), dimension(3) :: lattice_vector, recip_lat_vec
  real(8), dimension(:), allocatable :: MassPrefac, spectrum_freqs, freqs_smoothed
+ real(8), dimension(:), allocatable :: window_fn
  real(8), dimension(:,:), allocatable :: freqs, r, r_eq, k_vectors
  real(8), dimension(:,:,:), allocatable :: all_SED_smoothed, all_corr_fns
  real(8), dimension(3,3) :: box

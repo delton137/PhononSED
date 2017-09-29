@@ -55,13 +55,21 @@ subroutine calculate_frequencies_and_smoothing
  if (BTEMD) allocate(all_corr_fns(Nk, Neig, Ncorrptsout))
 
  !------------ find frequencies for smoothed data ---------------
-
  do i = 0, NPointsOut-1
     freqs_smoothed(i+1) = ( floor((i+.5)*BlockSize) )/(timestep*trun) !use central frequency
  enddo
 
  freqs_smoothed = freqs_smoothed/(Cspeed*ps2s) !convert to 1/cm
 
+
+ !------------ create exponential window function ---------------
+ !------------ in case we want to use windowing later -----------
+ tau_window = 0.01*Ntimesteps
+ !tau_window = 8.69*Ntimesteps/(2*Decibels_reduced)
+ allocate(window_fn(Ntimesteps))
+ do i = 1, Ntimesteps
+     window_fn(i) = dexp( - abs(i - (Ntimesteps-1)/2) /tau_window)
+ enddo
 
 end subroutine calculate_frequencies_and_smoothing
 
@@ -87,22 +95,25 @@ subroutine eigen_projection_and_SED(eig, SED_smoothed, ik)
      enddo
  enddo
 
+!------ apply window function
+!SED = SED*window_fn
+
 !--------- calculate Spectral Energy Density
- call calc_DFT_squared(qdot, SED, length, trun)
+call calc_DFT_squared(qdot, SED, length, trun)
 
- SED = (1d0/3.14159d0)*SED/timestep !!*(1d0/(2*length) ) division performed in DFT routine
+SED = (1d0/3.14159d0)*SED/timestep !!*(1d0/(2*length) ) division performed in DFT routine
 
- !------- block averaging / smoothing
- do i = 1, NPointsOut
-   SED_smoothed(i) = sum(SED((i-1)*BlockSize+1:i*BlockSize) ) /BlockSize
- enddo
+!------- block averaging / smoothing
+do i = 1, NPointsOut
+  SED_smoothed(i) = sum(SED((i-1)*BlockSize+1:i*BlockSize) ) /BlockSize
+enddo
 
 end subroutine eigen_projection_and_SED
 
 
 
 !------------------------------------------------------------------------------
-!- "BTE_MD" method (time domain method from energy-energy correlation fun.) --
+!-  Time domain method  ------------------------------------------------------
 !------------------------------------------------------------------------------
 subroutine BTE_MD(eig, SED_smoothed, ik, ie, BTEMD_corr_fun_out)
  implicit none
@@ -118,29 +129,28 @@ subroutine BTE_MD(eig, SED_smoothed, ik, ie, BTEMD_corr_fun_out)
      qdot =  dcmplx(0, 0)
      q1 =  dcmplx(0, 0)
      do ia = 1, Natoms
-         exppart = exp(  dcmplx(0, -1)*dot_product(k_vectors(ik, :), r_eq(ia, :))  )
+         exppart = exp(  dcmplx(0, 1)*dot_product(k_vectors(ik, :), r_eq(ia, :))  )
 
          qdot = qdot + MassPrefac(ia)*dot_product(velocities(t, ia, :), eig(ia, :))*exppart
-
-         q1 = q1 +  MassPrefac(ia)*dot_product(coordinates(t, ia, :) -  r_eq(ia, :), eig(ia, :))*exppart
+         !q1 = q1 +  MassPrefac(ia)*dot_product(coordinates(t, ia, :) -  r_eq(ia, :), eig(ia, :))*exppart
      enddo
-     Ekw(t) = (freqs(ik, ie)**2)*q1*conjg(q1)/2d0 + qdot*conjg(qdot)/2d0
+     Ekw(t) = qdot !qdot*conjg(qdot)/2d0 !+ (freqs(ik, ie)**2)*q1*conjg(q1)/2d0
  enddo
 
  !--------- calculate correlation function
  call calc_corr_function2(Ekw, BTEMD_corr_fun, Ntimesteps)
 
- BTEMD_corr_fun_out = BTEMD_corr_fun(1:Ncorrptsout)/BTEMD_corr_fun(1)
+ BTEMD_corr_fun_out = BTEMD_corr_fun(1:Ncorrptsout)/BTEMD_corr_fun(1) !normalize
 
- !--------- calculate Spectral Energy Density for the mode
- call calc_DFT(BTEMD_corr_fun, SED, Ntimesteps)
+  !--------- calculate Spectral Energy Density for the mode
+ call calc_DFT(dcmplx(BTEMD_corr_fun), SED,  length, trun)
 
  SED = (1d0/3.14159d0)*SED/timestep !!*(1d0/(2*length) ) division performed in DFT routine
 
- !------- block averaging / smoothing
- do i = 1, NPointsOut
-   SED_smoothed(i) = sum(SED((i-1)*BlockSize+1:i*BlockSize) ) /BlockSize
- enddo
+  !------- block averaging / smoothing
+  do i = 1, NPointsOut
+    SED_smoothed(i) = sum(SED((i-1)*BlockSize+1:i*BlockSize) ) /BlockSize
+  enddo
 
 end subroutine BTE_MD
 
@@ -214,30 +224,26 @@ end subroutine calc_corr_function2
 !------------------------------------------------------------------------
 !-------  Compute DFT (discrete Fourier transform) using four1.f
 !------------------------------------------------------------------------
-subroutine calc_DFT(input, output, tread)
+subroutine calc_DFT(input, output, tread, trun)
  Implicit none
- integer, intent(in) :: tread
- double precision, dimension(tread), intent(in) :: input
- double precision, dimension(tread), intent(out) ::  output
+ integer, intent(in) :: tread, trun
+ double complex, dimension(tread), intent(in) :: input
+ double precision, dimension(trun), intent(out) ::  output
  complex, dimension(:), allocatable :: transformed
- integer :: trun
-
- !zero padding
- trun = 2**(    floor( dlog(  dble(tread)  )/dlog(2d0)  )  + 1 )
 
  if (.not. allocated(transformed)) then
- 	allocate(transformed(0:2*trun-1))
- elseif (.not. (2*trun .eq. size(transformed))) then
+ 	allocate(transformed(0:trun-1))
+ elseif (.not. (trun .eq. size(transformed))) then
 	deallocate(transformed)
-	allocate(transformed(0:2*trun-1))
+	allocate(transformed(0:trun-1))
  endif
 
  transformed = 0
- transformed(0:tread-1) = cmplx(input)
+ transformed(0:tread-1) = input
 
- call four1(transformed,2*trun,1)
+ call four1(transformed, trun, 1)
 
- output=dble(transformed(0:tread-1))/(2d0*trun)
+ output=dble(transformed(0:trun-1))/trun
 
 end subroutine calc_DFT
 
