@@ -47,7 +47,9 @@ subroutine read_input_files
  read(luninp, *) Neig
  read(luninp, *) fvel
  read(luninp, *) feig
+ read(luninp, *) C_TYPE_EIGENVECTOR
  read(luninp, *) fcoord
+ read(luninp, *) SUPERCELL_EIGENVECTOR
  read(luninp, *) Ntimesteps
  read(luninp, *) timestep
  read(luninp, *) READALL
@@ -170,29 +172,36 @@ endif
      call read_LAAMPS_files
  endif
 
- !---- calculate "equilibrium unit cell coordinates"
+ write(*, *) "getting equilibrium coords..."
+
+ !---- get "equilibrium unit cell coordinates"
  !---- this calculates the coordinate for the corner of the unit cell each atom is in
  allocate(r(Natoms, 3))
- do ia = 1, Natoms
-      do ix = 1, 3
-          r(ia, ix) =  floor(r_eq(ia,ix)/lattice_vector(ix))*lattice_vector(ix)
-       enddo
- enddo
+
+ if (C_TYPE_EIGENVECTOR) then
+     call io_assign(lun)
+     open(lun, file=fcoord, status='old', action='read')
+     r = one_frame_xyz(lun)
+     call io_close(lun)
+ else
+     do ia = 1, Natoms
+         do ix = 1, 3
+             r(ia, ix) =  floor(r_eq(ia,ix)/lattice_vector(ix))*lattice_vector(ix)
+         enddo
+     enddo
+ endif
 
 end subroutine read_input_files
 
 
 !------------------------------------------------------------
-!---------------- Read k-point file ------------------------
+!---------------- Read eigenvector file --------------------
 !------------------------------------------------------------
 subroutine read_eigvector_file()
  integer  :: Natoms_file, Neig_file
  real(8)  :: mag
  character(len=10) :: junk
- logical :: SUPERCELL_EIGENVECTOR=.false.
 
-
- !SUPERCELL_EIGENVECTOR = .true.
 
  call io_assign(luneig)
  open(luneig, file=feig, status='old', action='read')
@@ -204,14 +213,22 @@ subroutine read_eigvector_file()
                  AtomsPerUnitCell, ")"
     stop
  endif
- if ((AtomsPerUnitCell .lt. Natoms_file)) then
-     write(*,*) "WARNING: N_atoms in eigenvector file ( ", Natoms_file," ) is", &
+ if (SUPERCELL_EIGENVECTOR) then
+     if ((Natoms .gt. Natoms_file)) then
+         write(*, *) "WARNING.. I am looking for eigenvectors for a supercell representation &
+                      in the input .eig file. I don't see enough atoms. Continuing anyway.."
+     endif
+else
+    if ((AtomsPerUnitCell .lt. Natoms_file)) then
+        write(*,*) "WARNING: N_atoms in eigenvector file ( ", Natoms_file," ) is", &
                  " greater than the expected number of atoms per unit cell (", &
                  AtomsPerUnitCell, "). I assume you know what you are doing  &
-                 and will continue to see what happens... "
+                 and will continue to see what happens... You may want to make sure &
+                 supercell representation is set to TRUE in the input file."
+    endif
  endif
 
- do ia = 1, Natoms !!AtomsPerUnitCell
+ do ia = 1, Natoms_file
      read(luneig, *)
  enddo
 
@@ -233,6 +250,7 @@ subroutine read_eigvector_file()
 
 
     if (.not. SUPERCELL_EIGENVECTOR) then
+
          do ie = 1, Neig
             read(luneig, *) !Mode    x
             read(luneig, *) freqs(ik, ie)
@@ -250,7 +268,9 @@ subroutine read_eigvector_file()
                 eig_vecs(ik, ie, (i-1)*j+1:(i-1)*j+j,:) = eig_vecs(ik, ie, 1:j, :) !fill in rest
             enddo
          enddo
+
     else
+
          do ie = 1, Neig
             read(luneig, *) !Mode    x
             read(luneig, *) freqs(ik, ie)
@@ -262,9 +282,8 @@ subroutine read_eigvector_file()
             mag = sqrt(mag)
             eig_vecs(ik, ie, 1:AtomsPerUnitCell, :) = eig_vecs(ik, ie, 1:AtomsPerUnitCell, :)/mag !make a unit vector (normalization)
         enddo
+
     endif
-
-
 
      !do ia = 1, Natoms
     !     write(*,*)  eig_vecs(1, 1, ia, :)
@@ -409,6 +428,25 @@ function one_frame(lun)
 
 end function one_frame
 
+!-----------------------------------------------------------------------
+!----------------- Read one frame of a standard .xyz file -------------
+!-----------------------------------------------------------------------
+function one_frame_xyz(lun)
+ implicit none
+ real(8), dimension(Natoms, 3) :: one_frame_xyz
+ integer, intent(in) :: lun
+ integer ::  Natoms_file
+ character(2) :: junk
+
+ read(lun,*) Natoms_file
+ read(lun,*) !comment line
+
+ do ia = 1, Natoms
+    read(lun,*) junk, (one_frame_xyz(ia, ix), ix=1,3)
+ enddo
+
+end function one_frame_xyz
+
 !---------------------------------------------------------------------
 !-----------------  Print SED ---------------------------------------
 !---------------------------------------------------------------------
@@ -430,6 +468,14 @@ subroutine print_SED
          write(lunout, '(e12.6)', advance='yes') all_SED_smoothed(ik, Neig, i)
      enddo
      call io_close(lunout)
+
+     call io_open(lunout, filename=trim(fileheader)//"_"//trim(str(ik))//"_frequencies.dat")
+     do ie = 1, Neig
+             write(lunout, '(f12.5,1x)') freqs(ik, ie)
+     enddo
+     call io_close(lunout)
+
+
 enddo !ie = 1, Neig
 
  call io_open(lunout, filename=trim(fileheader)//"_kvectors.dat")
@@ -440,14 +486,7 @@ enddo !ie = 1, Neig
 
 
 
- call io_open(lunout, filename=trim(fileheader)//"_frequencies.dat")
- do ie = 1, Neig
-     do ik = 1, Nk-1
-         write(lunout, '(f12.5,1x)', advance='no') freqs(ik, ie)
-     enddo
-        write(lunout, '(f12.5,1x)', advance='yes') freqs(Nk, ie)
- enddo
- call io_close(lunout)
+
 
 end subroutine print_SED
 

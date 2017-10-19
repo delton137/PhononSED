@@ -24,7 +24,7 @@ module main_vars
  integer :: Natoms, Nunitcells, AtomsPerMolecule, MoleculesPerUnitCell, AtomsPerUnitCell
  integer :: Neig, lun, luneig, lunout, ik, ia, i, j, idx, ix, Ntimesteps, t, Nk, ie
  integer :: NPointsOut, length, BlockSize, NFullSEDPoints, Ncorrptsout, trun
- logical :: READALL, FULLSED, BTEMD, GULPINPUT
+ logical :: READALL, FULLSED, BTEMD, GULPINPUT, C_TYPE_EIGENVECTOR,  SUPERCELL_EIGENVECTOR
  real(8), parameter :: TwoPi = 2*3.14159d0
  real(8) :: timestep, MaxFreqOut, MinFreqOut, tau_window
  real(8), dimension(3) :: lattice_vector, recip_lat_vec

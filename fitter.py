@@ -74,10 +74,9 @@ def fit_function(dataX, dataY, fit_fn, params, bounds, differential_evolution=Fa
 
 #peak_freqs = np.loadtxt('MgOtest1x1x1_frequencies.dat')
 #data = np.loadtxt('MgOtest1x1x1_NVT_1_SED.dat')
-
-peak_freqs = np.loadtxt('MgOtest1x1x1_NVT_frequencies.dat')
-data = np.loadtxt('MgOtest1x1x1_NVT_1_SED.dat')
-
+header = 'MgOtest'
+peak_freqs = np.loadtxt(header+'_frequencies.dat')
+data = np.loadtxt(header+'_2_SED.dat')
 
 num_modes = data.shape[1]-4 #number of modes, dropping the 3 acoustic modes and the one column for time data
 num_freqs = data.shape[0]
@@ -90,7 +89,7 @@ peak_freqs = peak_freqs[3:]
 print(peak_freqs)
 
 allparams = np.zeros([4, num_modes])
-lifetimes = np.zeros([num_modes, 1])
+lifetimes = np.zeros([num_modes])
 
 sw = 30 #search width on each side for fitting, in 1/cm
 freq_step = freqs[5]-freqs[4]
@@ -101,26 +100,25 @@ npts = 500
 
 for m in range(0, num_modes):
     max_height = max(mode_data[:,m])
-    idx_max = list(mode_data[:,m]).index(max_height)
-    freq_max = idx_max*freq_step + freq_step
-
-    if (abs(freq_max-peak_freqs[m]) > sw):
+    idx_peak = list(mode_data[:,m]).index(max_height)
+    freq_max = idx_peak*freq_step + freq_step
+    if (abs(freq_max - peak_freqs[m]) > sw):
         print("WARNING : for mode ", m, " the location of maximum height is not near GULP value!!")
         print(freq_max, "vs", peak_freqs[m])
-        idx_max = peak_freqs[m]/freq_step - 1
+        idx_peak = peak_freqs[m]/freq_step - 1
 
-    if (idx_max > len(mode_data[:,1])-1):
-        idx_max = len(mode_data[:,1])-1
+    if (idx_peak > len(mode_data[:,1])-1):
+        idx_peak = len(mode_data[:,1])-1
         print("WARNING: according to GULP, peak is at higher freq than avail in file")
 
-    if ((idx_max - iw) < 0):
-        iw = idx_max - 1
+    if ((idx_peak - iw) < 0):
+        iw = idx_peak - 1
 
-    freqs_2_fit = freqs[idx_max-iw:idx_max+iw]
+    freqs_2_fit = freqs[idx_peak-iw:idx_peak+iw]
 
-    Y_2_fit = mode_data[idx_max-iw:idx_max+iw, m]
+    Y_2_fit = mode_data[idx_peak-iw:idx_peak+iw, m]
 
-    w0 = freqs[idx_max]
+    w0 = freqs[idx_peak]
 
     params = [max_height, w0, 1, 0]
     if (w0 < sw):
@@ -132,23 +130,26 @@ for m in range(0, num_modes):
     lifetimes[m] = (1/(params[2]*2.99*1e10))/(1e-9)  #lifetimes in ps
 
 #%%----- plotting ------------------------------------------------------------
-num_modes_plot = 3#num_modes
-start_plot = 31
+num_modes_plot = num_modes
+start_plot = 0
 
 for m in range(start_plot , start_plot +num_modes_plot):
 
     #max_height = max(mode_data[:,m])
-    #idx_max = list(mode_data[:,m]).index(max_height)
-    idx_max = peak_freqs[m]/freq_step - 1 #center on GULP frequencies
+    #idx_peak = list(mode_data[:,m]).index(max_height)
 
+    idx_peak = peak_freqs[m]/freq_step - 1 #center on GULP frequencies
 
-    if ((idx_max - iw) < 0):
-        iw = idx_max - 1
+    if ((idx_peak - iw) < 0):
+        iw = idx_peak - 1
 
-    freqs_2_fit = freqs[idx_max-iw:idx_max+iw]
+    if (idx_peak > len(freqs) - 1):
+        idx_peak = len(freqs)-1-pw
 
-    xmin = freqs[idx_max] - pw #for plotting
-    xmax = freqs[idx_max] + pw
+    freqs_2_fit = freqs[idx_peak-iw:idx_peak+iw]
+
+    xmin = freqs[idx_peak] - pw #for plotting
+    xmax = freqs[idx_peak] + pw
     modelX = np.linspace(xmin, xmax, npts)
     modelXfit = np.linspace(min(freqs_2_fit), max(freqs_2_fit), npts)
 
@@ -172,9 +173,27 @@ for m in range(start_plot , start_plot +num_modes_plot):
 plt.show(block=True)
 
 
+#%%------------ fitting and plotting lifetimes vs frequency -------------------
+from scipy.optimize import curve_fit
+
+def scaling_fn(w, A=10e7):
+    return A*1./(w**2)
+
+def scaling_fn_arb(w, A=10e7, B=2.0):
+    return A*1./(w**B)
+
+
+A_fit = curve_fit(scaling_fn, peak_freqs, lifetimes) #p0=
+x_fit = np.linspace(min(peak_freqs), max(peak_freqs),100)
+y_fit = scaling_fn(x_fit, A=A_fit[0])
+
 plt.figure(2)
-plt.plot(peak_freqs, lifetimes, '*')
+plt.plot(peak_freqs, lifetimes, '*', label ='')
+plt.plot(x_fit, y_fit, '-', label=r'$\omega^{-2}$ fit')
+handles, labels = ax.get_legend_handles_labels()
+plt.legend(handles)
 plt.yscale('log')
+plt.xscale('log')
 plt.xlabel(r"$\omega$ (cm$^{-1}$)")
 plt.ylabel(r"lifetime (ps)")
 plt.show(block=True)

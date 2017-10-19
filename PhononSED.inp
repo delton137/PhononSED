@@ -1,12 +1,14 @@
 'MgO'      'RDX'                    ! Model
-'MgOtest1x1x1_NVT'                ! output file header
-8                      ! # of unit cells
-1                        ! # of k-vectors to do the calculation on (1 = Gamma point only)
-192                       ! # of eigvectors to do the calculation
+'MgOtest'                ! output file header
+8                            ! # of unit cells
+2                             ! # of k-vectors to do the calculation on (1 = Gamma point only)
+92                          ! # of eigvectors to do the calculation
 '/Users/dan/velocities.dat'       ! LAMMPS velocities data file
 '/Users/dan/eig_2x2x2_2x2x2.eig'            eigMgO.eig'        ! GULP eigenvectors data file
-'/Users/dan/coords.dat'  'example_coords.dat'     ! LAMMPS coordinates file
-100000                   ! # of timesteps to read in
+.f.                      !use e^(k dot r_i) with eigenvector represenation ("C-type"). False -> use k dot l_b ("D-type")
+'MgO.xyz'  'example_coords.dat'     ! LAMMPS coordinates file
+.t.                      ! Supercell eigenvectors?
+100000                  ! # of timesteps to read in
 .02                      ! timestep (ps)
 .f.                      ! Read entire file until end?
 10000                     ! N points to output in (smoothed) spectra
