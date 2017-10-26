@@ -80,19 +80,20 @@ end subroutine calculate_frequencies_and_smoothing
 subroutine eigen_projection_and_SED(eig, SED_smoothed, ik)
  implicit none
  integer, intent(in) :: ik
- real(8), dimension(Natoms, 3), intent(in) :: eig !!Eigenvector to project onto
+ double complex, dimension(Natoms, 3), intent(in) :: eig !!Eigenvector to project onto
  real(8), dimension(NpointsOut), intent(out) :: SED_smoothed
  real(8), dimension(trun) :: SED
- real(8) :: part1
-
+ double complex :: part1
 
  !-------- projection
  do t = 1, Ntimesteps
      qdot(t) = 0
-     do ia = 1, Natoms
-         part1 = MassPrefac(ia)*dot_product(velocities(t, ia, :), eig(ia, :))
+     do ix = 1,3
+       do ia = 1, Natoms
+         part1 = MassPrefac(ia)*velocities(t, ia, ix)*conjg(eig(ia, ix))
          qdot(t) = qdot(t) + part1*exp(  dcmplx(0, 1)*dot_product(k_vectors(ik, :), r(ia, :))  )
-     enddo
+      enddo
+    enddo
  enddo
 
 !------ apply window function
@@ -118,7 +119,7 @@ end subroutine eigen_projection_and_SED
 subroutine BTE_MD(eig, SED_smoothed, ik, ie, BTEMD_corr_fun_out)
  implicit none
  integer, intent(in) :: ik, ie
- real(8), dimension(Natoms, 3), intent(in) :: eig !!Eigenvector to project onto
+ double complex, dimension(Natoms, 3), intent(in) :: eig !!Eigenvector to project onto
  real(8), dimension(NpointsOut), intent(out) :: SED_smoothed
  real(8), dimension(Ncorrptsout), intent(out) :: BTEMD_corr_fun_out
  real(8), dimension(Ntimesteps) :: Ekw, SED,  BTEMD_corr_fun
@@ -131,7 +132,7 @@ subroutine BTE_MD(eig, SED_smoothed, ik, ie, BTEMD_corr_fun_out)
      do ia = 1, Natoms
          exppart = exp(  dcmplx(0, 1)*dot_product(k_vectors(ik, :), r_eq(ia, :))  )
 
-         qdot = qdot + MassPrefac(ia)*dot_product(velocities(t, ia, :), eig(ia, :))*exppart
+         qdot = qdot + MassPrefac(ia)*dot_product(velocities(t, ia, :), conjg(eig(ia, :)))*exppart
          !q1 = q1 +  MassPrefac(ia)*dot_product(coordinates(t, ia, :) -  r_eq(ia, :), eig(ia, :))*exppart
      enddo
      Ekw(t) = qdot !qdot*conjg(qdot)/2d0 !+ (freqs(ik, ie)**2)*q1*conjg(q1)/2d0

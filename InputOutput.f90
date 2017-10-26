@@ -111,14 +111,16 @@ subroutine read_input_files
     allocate(eig_vecs(Nk, Neig, Natoms, 3))
 
     !build array of masses for ALL atoms
-    idx = 1
-    do i = 1, Nunitcells
-        do j = 1, MoleculesPerUnitCell
-            MassPrefac(idx+0:idx+3)   = MMg ! Carbon
-            MassPrefac(idx+4:idx+7)   = MO ! Nitrogen
-            idx = idx + AtomsPerMolecule
-        enddo
-    enddo
+    !idx = 1
+    !do i = 1, Nunitcells
+    !    do j = 1, MoleculesPerUnitCell
+    !        MassPrefac(idx+0:idx+3)   = MMg ! Carbon
+    !        MassPrefac(idx+4:idx+7)   = MO ! Nitrogen
+    !        idx = idx + AtomsPerMolecule
+    !    enddo
+    !enddo
+    MassPrefac(1:int(Natoms/2)) = MMg
+    MassPrefac(int(Natoms/2)+1:Natoms) = MO
     MassPrefac = sqrt(MassPrefac/real(Nunitcells))
 
     a1 = 4.211986  !x
@@ -128,6 +130,7 @@ subroutine read_input_files
 
     denom = a1*a2*a3
     recip_lat_vec = (/ a2*a3 ,a1*a3 , a2*a3 /) !! Perpendicularity assumed!!
+    
     recip_lat_vec = TwoPi*recip_lat_vec/denom
  endif
 
@@ -200,6 +203,7 @@ end subroutine read_input_files
 subroutine read_eigvector_file()
  integer  :: Natoms_file, Neig_file
  real(8)  :: mag
+ double precision, dimension(3) :: realpart, cmplxpart
  character(len=10) :: junk
 
 
@@ -207,6 +211,7 @@ subroutine read_eigvector_file()
  open(luneig, file=feig, status='old', action='read')
 
  read(luneig, *) Natoms_file
+
  if ((AtomsPerUnitCell .gt. Natoms_file)) then
      write(*,*) "ERROR: N_atoms in eigenvector file ( ", Natoms_file," ) is", &
                  " less than the expected number of atoms per unit cell (", &
@@ -233,7 +238,7 @@ else
  enddo
 
  read(luneig, *) !int
- read(luneig, *) Neig_file  !N kpoints
+ read(luneig, *) Neig_file
  write(*,'(a,i4,a)') "File contains", Neig_file, " eigenvectors per k-point"
  if (Neig .gt. Neig_file) then
      write(*,*) "ERROR: Neig specified is larger than the number of  &
@@ -244,49 +249,49 @@ else
 
  do ik = 1, Nk
      read(luneig, '(a,3f9.6)') junk, (k_vectors(ik, ix), ix = 1,3)
-     k_vectors(ik, 1) = k_vectors(ik, 1)*(recip_lat_vec(1))!/TwoPi)
-     k_vectors(ik, 2) = k_vectors(ik, 2)*(recip_lat_vec(2))!/TwoPi)
-     k_vectors(ik, 3) = k_vectors(ik, 3)*(recip_lat_vec(3))!/TwoPi)
+     k_vectors(ik, 1) = k_vectors(ik, 1)*recip_lat_vec(1)/TwoPi
+     k_vectors(ik, 2) = k_vectors(ik, 2)*recip_lat_vec(2)/TwoPi
+     k_vectors(ik, 3) = k_vectors(ik, 3)*recip_lat_vec(3)/TwoPi
 
+     do ie = 1, Neig
+        read(luneig, *) !Mode    x
+        read(luneig, *) freqs(ik, ie)
+        mag = 0
+        do ia = 1, Natoms_file
 
-    if (.not. SUPERCELL_EIGENVECTOR) then
+            if (ik .eq. 1) then
+                read(luneig, *) realpart(1), realpart(2), realpart(3)
+                do ix = 1, 3
+                    eig_vecs(ik, ie, ia, ix) = dcmplx(realpart(ix), 0)
+                enddo
+            else
+                read(luneig, *) realpart(1), realpart(2), realpart(3), cmplxpart(1), cmplxpart(2), cmplxpart(3)
+                do ix = 1, 3
+                    eig_vecs(ik, ie, ia, ix) = dcmplx(realpart(ix), cmplxpart(ix))
+                enddo
+            endif
 
-         do ie = 1, Neig
-            read(luneig, *) !Mode    x
-            read(luneig, *) freqs(ik, ie)
-            mag = 0
-            do ia = 1, AtomsPerUnitCell
-                read(luneig, *) (eig_vecs(ik, ie, ia, ix), ix = 1, 3)
-                mag = mag + eig_vecs(ik, ie, ia, 1)**2 + eig_vecs(ik, ie, ia, 2)**2 + eig_vecs(ik, ie, ia, 3)**2
-            enddo
-            mag = sqrt(mag)
-            eig_vecs(ik, ie, 1:AtomsPerUnitCell, :) = eig_vecs(ik, ie, 1:AtomsPerUnitCell, :)/mag !make a unit vector (normalization)
+            mag = mag + real(eig_vecs(ik, ie, ia, 1)*conjg(eig_vecs(ik, ie, ia, 1)) + &
+                             eig_vecs(ik, ie, ia, 2)*conjg(eig_vecs(ik, ie, ia, 2)) + &
+                             eig_vecs(ik, ie, ia, 3)*conjg(eig_vecs(ik, ie, ia, 3)) )
 
+        enddo !do ia = 1, Natoms_file
+
+        mag = sqrt(mag)
+        eig_vecs(ik, ie, 1:AtomsPerUnitCell, :) = eig_vecs(ik, ie, 1:AtomsPerUnitCell, :)/mag !make a unit vector (normalization)
+
+        if (.not. SUPERCELL_EIGENVECTOR) then
             !copy eigenvectors from 0,0,0 unit cell to other unit cells
+
             do i = 2, Nunitcells
                 j = AtomsPerUnitCell
                 eig_vecs(ik, ie, (i-1)*j+1:(i-1)*j+j,:) = eig_vecs(ik, ie, 1:j, :) !fill in rest
             enddo
-         enddo
-
-    else
-
-         do ie = 1, Neig
-            read(luneig, *) !Mode    x
-            read(luneig, *) freqs(ik, ie)
-            mag = 0
-            do ia = 1, Natoms
-                read(luneig, *) (eig_vecs(ik, ie, ia, ix), ix = 1, 3)
-                mag = mag + eig_vecs(ik, ie, ia, 1)**2 + eig_vecs(ik, ie, ia, 2)**2 + eig_vecs(ik, ie, ia, 3)**2
-            enddo
-            mag = sqrt(mag)
-            eig_vecs(ik, ie, 1:AtomsPerUnitCell, :) = eig_vecs(ik, ie, 1:AtomsPerUnitCell, :)/mag !make a unit vector (normalization)
-        enddo
-
-    endif
+        endif
+     enddo  !do ie = 1, Neig
 
      !do ia = 1, Natoms
-    !     write(*,*)  eig_vecs(1, 1, ia, :)
+     !     write(*,*)  eig_vecs(1, 1, ia, :)
      !enddo
 
      ! read any remaining eigenvectors ls
@@ -298,7 +303,7 @@ else
         enddo
      enddo
 
- enddo
+ enddo !ik = 1, Nk
 
 end subroutine read_eigvector_file
 
@@ -448,7 +453,7 @@ function one_frame_xyz(lun)
 end function one_frame_xyz
 
 !---------------------------------------------------------------------
-!-----------------  Print SED ---------------------------------------
+!-----------------  Print SED and other outputs ---------------------
 !---------------------------------------------------------------------
 subroutine print_SED
  implicit none

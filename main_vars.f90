@@ -33,7 +33,7 @@ module main_vars
  real(8), dimension(:,:), allocatable :: freqs, r, r_eq, k_vectors
  real(8), dimension(:,:,:), allocatable :: all_SED_smoothed, all_corr_fns
  real(8), dimension(3,3) :: box
- real(8), dimension(:,:,:,:), allocatable :: eig_vecs
+ double complex, dimension(:,:,:,:), allocatable :: eig_vecs
  real(8), dimension(:,:,:), allocatable :: velocities, coordinates
  double complex, dimension(:), allocatable :: qdot
  double precision, parameter :: Cspeed=3.00d10 ! cm/s

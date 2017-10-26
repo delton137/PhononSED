@@ -1,5 +1,5 @@
-'RDX'                    ! Model
-'RDXtest'                ! output file header
+'MgO'      'RDX'                    ! Model
+'MgOtest_super'                ! output file header
 8                            ! # of unit cells
 2                             ! # of k-vectors to do the calculation on (1 = Gamma point only)\
 192     24                          ! # of eigvectors to do the calculation
