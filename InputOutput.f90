@@ -56,13 +56,12 @@ subroutine read_input_files
  read(luninp, *) NPointsOut
  read(luninp, *) BTEMD
  read(luninp, *) GULPINPUT
- read(luninp, *) fcoords
  read(luninp, *) Ncorrptsout
 
  !call io_close(luninp)
 
 
-!-------------------- RDX  ------------------------------------------------
+ !-------------------- RDX  ------------------------------------------------
  if (model == 'RDX') then
     write(*,*) "Model is RDX"
     AtomsPerMolecule = 21
@@ -85,6 +84,7 @@ subroutine read_input_files
             idx = idx + AtomsPerMolecule
         enddo
     enddo
+    
     MassPrefac = sqrt(MassPrefac/real(Nunitcells))
 
     a1 = 13.18200 !x
@@ -96,7 +96,6 @@ subroutine read_input_files
     recip_lat_vec = (/ a2*a3 ,a1*a3 , a2*a3 /) !! Perpendicularity assumed!!
     recip_lat_vec = TwoPi*recip_lat_vec/denom
  endif
-
 
 !-------------------- Magnesium Oxide (MgO) -------------------------------
  if (model == 'MgO') then
@@ -130,11 +129,11 @@ subroutine read_input_files
 
     denom = a1*a2*a3
     recip_lat_vec = (/ a2*a3 ,a1*a3 , a2*a3 /) !! Perpendicularity assumed!!
-    
+
     recip_lat_vec = TwoPi*recip_lat_vec/denom
  endif
 
- !------------- read length of velocities file
+ !------------- read length of velocities file ------------------------------
  if (READALL) then
     write(*,*) "Reading size of file ..."
 
@@ -157,11 +156,14 @@ subroutine read_input_files
     call io_close(lun)
 
 endif
-
+!------------- allocations ----------- ------------------------------
  allocate(qdot(Ntimesteps))
  allocate(k_vectors(Nk, 3))
+ allocate(r_eq(Natoms, 3))
+ allocate(r(Natoms, 3))
 
- !read in k-vectors we will be working with
+
+ !read in eigenvectors we will be working with
  if(pid .eq. 0)  call start_timer("reading files")
 
  write(*, *) "reading eigenvector file... "
@@ -175,18 +177,17 @@ endif
      call read_LAAMPS_files
  endif
 
- write(*, *) "getting equilibrium coords..."
 
  !---- get "equilibrium unit cell coordinates"
  !---- this calculates the coordinate for the corner of the unit cell each atom is in
- allocate(r(Natoms, 3))
-
- if (C_TYPE_EIGENVECTOR) then
+ if (C_TYPE_EIGENVECTOR .and. GULPINPUT) then
+     write(*, *) "reading equilibrium coords from external file..."
      call io_assign(lun)
      open(lun, file=fcoord, status='old', action='read')
      r = one_frame_xyz(lun)
      call io_close(lun)
  else
+     write(*, *) "generating unit cell coordinates ..."
      do ia = 1, Natoms
          do ix = 1, 3
              r(ia, ix) =  floor(r_eq(ia,ix)/lattice_vector(ix))*lattice_vector(ix)
@@ -233,8 +234,9 @@ else
     endif
  endif
 
+ write(*,*) "reading equilibrium coordinates from GULP eigenvector file..."
  do ia = 1, Natoms_file
-     read(luneig, *)
+     read(luneig, *) junk, (r_eq(ia, ix), ix = 1,3)
  enddo
 
  read(luneig, *) !int
@@ -326,15 +328,6 @@ subroutine read_LAAMPS_files
 
      call io_close(lun)
 
-     !------------- read equilibrium coordinates file ------
-     call io_assign(lun)
-     open(lun, file=fcoord, status='old', action='read')
-
-     allocate(r_eq(Natoms, 3))
-     r_eq = one_frame(lun)
-
-     call io_close(lun)
-
      !---------- read in coordinates data for BTEMD --------
      if (BTEMD) then
          write(*, *) "reading coordinates file... "
@@ -362,13 +355,10 @@ subroutine read_GULP_trajectory_file
  integer :: lun
  character(20) :: junk
 
-     !------------- read velocities file ------
      call io_assign(lun)
-     open(lun, file=fcoords, status='old', action='read')
+     open(lun, file=fvel, status='old', action='read')
 
      allocate(velocities(Ntimesteps, Natoms, 3))
-     allocate(r_eq(Natoms, 3))
-
 
      read(lun, *)
      read(lun, *)
@@ -379,7 +369,7 @@ subroutine read_GULP_trajectory_file
          enddo
          if (t .eq. 1) then
               do ia = 1, Natoms
-                  read(lun, '(3ES26.16E2)') (r_eq(ia, ix), ix=1,3)
+                  read(lun, '(3ES26.16E2)') !(r_eq(ia, ix), ix=1,3)
               enddo
          else
              do ia = 1, Natoms

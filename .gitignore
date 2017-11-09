@@ -1,0 +1,8 @@
+*.mod
+*.o
+*.dat
+*.dSYM
+*.x
+data/*
+RDX_structure/*
+*.out
