@@ -1,5 +1,6 @@
 '''
-Code to fit Lorentzian functions and find the lifetimes.
+Code to fit Lorentzian functions to spectra and find the lifetimes.
+For use with the PhononSED code.
 
 Daniel C. Elton, 2017
 
@@ -8,6 +9,39 @@ License: MIT
 import numpy as np
 from scipy import optimize
 import matplotlib.pyplot as plt
+
+# -----------------------------------------------------------------------------
+# -------- User-specified inputs ---------------------------------------------
+# -----------------------------------------------------------------------------
+#header = 'MgOtest_super'
+
+header = 'RDXtest'
+
+num_modes_plot = 12  # number of modes to plot per plot window
+start_plot = 0       # mode to start the plotting at
+num_plot_windows_to_do = 10 #int(np.ceil((num_modes-start_plot)/num_modes_plot))
+
+k = 1
+
+sw = 5 #search width on each side for fitting, in 1/cm
+pw = 50 #plottings width on each side for fitting, in 1/cm
+npts = 500 #npts for plotting fit
+
+peak_freqs = np.loadtxt(header+'_'+str(k)+'_frequencies.dat')
+data = np.loadtxt(header+'_'+str(k)+'_SED.dat')
+#peak_freqs = np.loadtxt('MgOtest1x1x1_frequencies.dat')
+#data = np.loadtxt('MgOtest1x1x1_NVT_1_SED.dat')
+
+num_modes = data.shape[1]-1 #number of modes, dropping first column since it is the time data
+num_freqs = data.shape[0]
+print("read in", num_modes, " modes at (including any acoustic) ", num_freqs, "frequency points")
+
+freqs = data[:,0]
+mode_data = data[:, 1:]
+
+# -----------------------------------------------------------------------------
+# --------------- functions --------------------------------------------------
+# -----------------------------------------------------------------------------
 
 def Lorentzian(w, params):
     '''
@@ -71,33 +105,15 @@ def fit_function(dataX, dataY, fit_fn, params, bounds, differential_evolution=Fa
 # -----------------------------------------------------------------------------
 # --------------- main code --------------------------------------------------
 # -----------------------------------------------------------------------------
-
-#peak_freqs = np.loadtxt('MgOtest1x1x1_frequencies.dat')
-#data = np.loadtxt('MgOtest1x1x1_NVT_1_SED.dat')
-header = 'MgOtest_super'
-k = 2
-peak_freqs = np.loadtxt(header+'_'+str(k)+'_frequencies.dat')
-data = np.loadtxt(header+'_'+str(k)+'_SED.dat')
-
-num_modes = data.shape[1]-1 #number of modes, dropping one column for time data
-num_freqs = data.shape[0]
-print("read in", num_modes, " modes at (including any acoustic) ", num_freqs, "frequency points")
-
-freqs = data[:,0]
-mode_data = data[:, 1:]
-
 #print("GULP freqs from file:")
 #print(peak_freqs)
+print("there are ", num_modes, " modes")
 
 allparams = np.zeros([4, num_modes])
 lifetimes = np.zeros([num_modes])
 
-sw = 5 #search width on each side for fitting, in 1/cm
 freq_step = freqs[5]-freqs[4]
 iw = int(np.floor(sw/freq_step)) #indexwidth
-
-pw = 50 #plottings width on each side for fitting, in 1/cm
-npts = 500 #npts for plotting fit
 
 for m in range(0, num_modes):
     max_height = max(mode_data[:,m])
@@ -125,7 +141,7 @@ for m in range(0, num_modes):
 
     params = [max_height, w0, 1, 0]
 
-    #this is mostly for handling acoustic modes (w0 ~ 0.0 )
+    #this is mostly for handling acoustic modes (ie. when w0 ~ 0.0 )
     if (w0 < sw):
         w0 = sw + 1
 
@@ -138,11 +154,9 @@ for m in range(0, num_modes):
 
 fit_peak_freqs = allparams[1,:]
 
-
+# -----------------------------------------------------------------------------
 #%%----- plotting ------------------------------------------------------------
-num_modes_plot = 12
-start_plot = 0
-num_plot_windows_to_do = 4 #int(np.ceil((num_modes-start_plot)/num_modes_plot))
+# -----------------------------------------------------------------------------
 
 for p in range(num_plot_windows_to_do):
 

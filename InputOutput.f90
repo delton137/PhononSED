@@ -84,11 +84,11 @@ subroutine read_input_files
             idx = idx + AtomsPerMolecule
         enddo
     enddo
-    
+
     MassPrefac = sqrt(MassPrefac/real(Nunitcells))
 
     a1 = 13.18200 !x
-    a2 = 11.5740  !y
+    a2 = 11.5741  !y
     a3 = 10.709   !z
     lattice_vector = (/ a1, a2, a3 /)
 
@@ -177,17 +177,24 @@ endif
      call read_LAAMPS_files
  endif
 
+ r_eq(ia, ix) =  r_eq(ia, ix)  - lattice_vector(ix)*floor(r(ia, ix)/lattice_vector(ix)) ! PBC correction -- very important !
 
- !---- get "equilibrium unit cell coordinates"
- !---- this calculates the coordinate for the corner of the unit cell each atom is in
- if (C_TYPE_EIGENVECTOR .and. GULPINPUT) then
-     write(*, *) "reading equilibrium coords from external file..."
-     call io_assign(lun)
-     open(lun, file=fcoord, status='old', action='read')
-     r = one_frame_xyz(lun)
-     call io_close(lun)
+ if (C_TYPE_EIGENVECTOR) then
+     write(*,*) "using equilibrium coords from GULP eig file , for use with C-type eigenvector representation ..."
+     r = r_eq
+     do i = 1, Natoms
+         write(*,*) r(i, :)
+     enddo
+     !--- deprecated option to read equlibrium coordinates from an external file
+     !write(*, *) "Since there is no GULP trajectory input, attempting to read equilibrium coords from external file..."
+     !call io_assign(lun)
+     !open(lun, file=fcoord, status='old', action='read')
+     !r = one_frame_xyz(lun)
+     !call io_close(lun)
  else
-     write(*, *) "generating unit cell coordinates ..."
+     write(*, *) "generating unit cell coordinates for use with D-type eigenvector representation ..."
+     !---- figure out equilibrium unit cell coordinates
+     !---- this calculates the coordinate for the corner of the unit cell each atom is in
      do ia = 1, Natoms
          do ix = 1, 3
              r(ia, ix) =  floor(r_eq(ia,ix)/lattice_vector(ix))*lattice_vector(ix)
@@ -367,15 +374,9 @@ subroutine read_GULP_trajectory_file
          do i = 1, 3
             read(lun, *) junk
          enddo
-         if (t .eq. 1) then
-              do ia = 1, Natoms
-                  read(lun, '(3ES26.16E2)') !(r_eq(ia, ix), ix=1,3)
-              enddo
-         else
-             do ia = 1, Natoms
-                 read(lun, *)
-             enddo
-         endif
+         do ia = 1, Natoms
+             read(lun, *)
+         enddo
          read(lun, *)
          do ia = 1, Natoms
              read(lun, '(3ES26.16E2)') (velocities(t, ia, ix), ix=1,3)

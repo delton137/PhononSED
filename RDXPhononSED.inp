@@ -1,0 +1,17 @@
+'RDX'                    ! Model
+'RDXtest'                ! output file header
+1                            ! # of unit cells
+1                            ! # of k-vectors to do the calculation on (1 = Gamma point only)\
+504                         ! # of eigvectors to do the calculation
+'/Users/dan/RDX_1_1_1_8.65ns.trg'       velocities_1x1x1.dat'       ! LAMMPS velocities data file or GULP trajectory file
+'/Users/dan/eig.eig'                           eig_1x1x1_1x1x1.eig'                   ! GULP eigenvectors data file
+.f.                       !use e^(k dot r_i) with eigenvector representation ("C-type"). False -> use k dot l_b ("D-type")
+''                 'example_coords.dat'     ! optional equilibrium coordinates file, otherwise, it reads equilibrium coordinates from GULP
+.f.                      ! Supercell eigenvectors?
+40000                    ! # of timesteps to read in
+.02                      ! timestep (ps)
+.f.                      ! Read entire file until end?
+10000                    ! N points to output in (smoothed) spectra
+.f.                      ! time domain method, output autocorrelation function of KE
+.t.                      ! GULP trajectory file
+1000                     ! number of timesteps to output in correlation function
