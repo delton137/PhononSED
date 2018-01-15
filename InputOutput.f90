@@ -33,7 +33,7 @@ subroutine read_input_files
  implicit none
  integer :: luninp, Nlines, EoF
  real(8) :: a1, a2, a3, denom
- real(8) :: MC = 12.011000, MN = 14.007200, MO = 15.999430, MH = 1.0080000
+ real(8) :: MC = 12.011000, MN = 14.007200, MO = 15.999430, MH = 1.0080000, MSi=28.0855
  real(8) :: MMg = 24.305
 
 
@@ -95,10 +95,9 @@ subroutine read_input_files
     denom = a1*a2*a3
     recip_lat_vec = (/ a2*a3 ,a1*a3 , a2*a3 /) !! Perpendicularity assumed!!
     recip_lat_vec = TwoPi*recip_lat_vec/denom
- endif
 
 !-------------------- Magnesium Oxide (MgO) -------------------------------
- if (model == 'MgO') then
+else if (model == 'MgO') then
     write(*,*) "Model is MgO"
     AtomsPerMolecule = 8
     MoleculesPerUnitCell = 1
@@ -131,6 +130,32 @@ subroutine read_input_files
     recip_lat_vec = (/ a2*a3 ,a1*a3 , a2*a3 /) !! Perpendicularity assumed!!
 
     recip_lat_vec = TwoPi*recip_lat_vec/denom
+ else if (model .eq. 'silicon') then
+     write(*,*) "Model is silicon"
+     AtomsPerMolecule = 2
+     MoleculesPerUnitCell = 1
+     AtomsPerUnitCell = AtomsPerMolecule*MoleculesPerUnitCell !2
+     Natoms = Nunitcells*AtomsPerUnitCell !2
+
+     allocate(MassPrefac(Natoms))
+     allocate(freqs(Nk, Neig))
+     allocate(eig_vecs(Nk, Neig, Natoms, 3))
+
+     !build array of masses for ALL atoms
+     MassPrefac = MSi
+     MassPrefac = sqrt(MassPrefac/real(Nunitcells))
+
+     a1 = 2*2.7285  !x
+     a2 = 2*2.7285  !y
+     a3 = 2*2.7285  !z
+     lattice_vector = (/ a1, a2, a3 /)
+
+     denom = a1*a2*a3
+     recip_lat_vec = (/ a2*a3 ,a1*a3 , a2*a3 /) !! Perpendicularity assumed!!
+
+     recip_lat_vec = TwoPi*recip_lat_vec/denom
+ else
+    write(*,*) "ERROR : model not found!!"
  endif
 
  !------------- read length of velocities file ------------------------------
@@ -182,9 +207,9 @@ endif
  if (C_TYPE_EIGENVECTOR) then
      write(*,*) "using equilibrium coords from GULP eig file , for use with C-type eigenvector representation ..."
      r = r_eq
-     do i = 1, Natoms
-         write(*,*) r(i, :)
-     enddo
+     !do i = 1, Natoms
+     !     write(*,*) r(i, :)
+     !enddo
      !--- deprecated option to read equlibrium coordinates from an external file
      !write(*, *) "Since there is no GULP trajectory input, attempting to read equilibrium coords from external file..."
      !call io_assign(lun)
@@ -209,10 +234,10 @@ end subroutine read_input_files
 !---------------- Read eigenvector file --------------------
 !------------------------------------------------------------
 subroutine read_eigvector_file()
- integer  :: Natoms_file, Neig_file
+ integer  :: Natoms_file, Neig_file, my_iostat
  real(8)  :: mag
  double precision, dimension(3) :: realpart, cmplxpart
- character(len=10) :: junk
+ character(len=10) :: junk, space
 
 
  call io_assign(luneig)
@@ -248,7 +273,7 @@ else
 
  read(luneig, *) !int
  read(luneig, *) Neig_file
- write(*,'(a,i4,a)') "File contains", Neig_file, " eigenvectors per k-point"
+ write(*,'(a,i4,a)') "File contains ", Neig_file, " eigenvectors per k-point"
  if (Neig .gt. Neig_file) then
      write(*,*) "ERROR: Neig specified is larger than the number of  &
                  eigenvectors in the input file."
@@ -266,6 +291,7 @@ else
         read(luneig, *) !Mode    x
         read(luneig, *) freqs(ik, ie)
         mag = 0
+
         do ia = 1, Natoms_file
 
             if (ik .eq. 1) then
@@ -274,7 +300,21 @@ else
                     eig_vecs(ik, ie, ia, ix) = dcmplx(realpart(ix), 0)
                 enddo
             else
-                read(luneig, *) realpart(1), realpart(2), realpart(3), cmplxpart(1), cmplxpart(2), cmplxpart(3)
+                read(luneig, *, iostat=my_iostat) realpart(1), realpart(2), realpart(3), cmplxpart(1), cmplxpart(2), cmplxpart(3)
+                if (my_iostat /= 0) then
+                    !write(*,*) 'WARNING: missing complex part of eigenvector in k=', ik, ' ieig = ', ie
+                    !backspace(luneig)
+                    my_iostat = 0
+                    read(luneig, *, iostat=my_iostat) realpart(1), realpart(2), realpart(3), space, &
+                                                      cmplxpart(1), cmplxpart(2), cmplxpart(3)
+                    if (my_iostat /= 0) then
+                        write(*,'(a,i3,a,i3)') 'WARNING: error reading cmplx eigenvector for k=', ik, ' mode # = ', ie
+                        read(luneig, *, iostat=my_iostat) realpart(1), realpart(2), realpart(3)
+                        cmplxpart(:) = 0
+                    endif
+                    my_iostat = 0
+                endif
+
                 do ix = 1, 3
                     eig_vecs(ik, ie, ia, ix) = dcmplx(realpart(ix), cmplxpart(ix))
                 enddo
@@ -291,12 +331,15 @@ else
 
         if (.not. SUPERCELL_EIGENVECTOR) then
             !copy eigenvectors from 0,0,0 unit cell to other unit cells
-
+            j = AtomsPerUnitCell
             do i = 2, Nunitcells
-                j = AtomsPerUnitCell
-                eig_vecs(ik, ie, (i-1)*j+1:(i-1)*j+j,:) = eig_vecs(ik, ie, 1:j, :) !fill in rest
+                eig_vecs(ik, ie, (i-1)*j+1 : (i-1)*j+j, :) = eig_vecs(ik, ie, 1:j, :) !fill in rest
             enddo
-        endif
+            !do j = 2, AtomsPerUnitCell
+            !    do i = 2, Nunitcells
+            !        eig_vecs(ik, ie, (i-1)*j+1 : (i-1)*j+j, :) = eig_vecs(ik, ie, 1:j, :) !fill in rest
+            !enddo
+         endif
      enddo  !do ie = 1, Neig
 
      !do ia = 1, Natoms
@@ -307,7 +350,7 @@ else
      do ie = Neig+1, Neig_file
         read(luneig, *) !Mode    x
         read(luneig, *) !freqs
-        do ia = 1, AtomsPerUnitCell
+        do ia = 1, Natoms_file
             read(luneig, *)
         enddo
      enddo
@@ -375,11 +418,14 @@ subroutine read_GULP_trajectory_file
             read(lun, *) junk
          enddo
          do ia = 1, Natoms
-             read(lun, *)
+             read(lun, *) !coordinates
          enddo
          read(lun, *)
          do ia = 1, Natoms
              read(lun, '(3ES26.16E2)') (velocities(t, ia, ix), ix=1,3)
+             !if (t .eq. 1) then
+             !    write(*,*) velocities(t, ia, :)
+             !endif
          enddo
          do ia = 1, 2*Natoms+2
              read(lun, *) !skip derivatives & site energies data

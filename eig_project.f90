@@ -76,6 +76,7 @@ end subroutine calculate_frequencies_and_smoothing
 
 !-----------------------------------------------------------------------
 !----------------- project velocities onto eigenvector k --------------
+!----------------- frequency domain method  ---------------------------
 !-----------------------------------------------------------------------
 subroutine eigen_projection_and_SED(eig, SED_smoothed, ik)
  implicit none
@@ -96,7 +97,7 @@ subroutine eigen_projection_and_SED(eig, SED_smoothed, ik)
     enddo
  enddo
 
-!------ apply window function
+!------ (optional and typically not needed) apply window function
 !SED = SED*window_fn
 
 !--------- calculate Spectral Energy Density
@@ -114,7 +115,7 @@ end subroutine eigen_projection_and_SED
 
 
 !------------------------------------------------------------------------------
-!-  Time domain method  ------------------------------------------------------
+!-  Time domain (energy autocorrelation) method  -----------------------------
 !------------------------------------------------------------------------------
 subroutine BTE_MD(eig, SED_smoothed, ik, ie, BTEMD_corr_fun_out)
  implicit none
