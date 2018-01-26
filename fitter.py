@@ -6,6 +6,7 @@ Daniel C. Elton, 2017
 
 License: MIT
 '''
+
 import numpy as np
 from scipy import optimize
 import matplotlib.pyplot as plt
@@ -15,16 +16,18 @@ import matplotlib.pyplot as plt
 # -----------------------------------------------------------------------------
 #header = 'MgOtest_super'
 
-header = 'RDXtest'
+#header = 'RDXtest'
+header = 'silicon_test_20modes'
+
 num_modes_plot = 12  # number of modes to plot per plot window
 start_plot = 0         # mode to start the plotting at
-num_plot_windows_to_do = 3 #int(np.ceil((num_modes-start_plot)/num_modes_plot))
+num_plot_windows_to_do = 1 #int(np.ceil((num_modes-start_plot)/num_modes_plot))
 
 k_list = [1]
 
-sw = 50 #search width on each side for fitting, in 1/cm
-pw = 100#plottings width on each side for fitting, in 1/cm
-npts = 250 #npts for plotting fit
+sw = 50      #search width on each side for fitting, in 1/cm
+pw = 100     #plot's width on each side in 1/cm
+npts = 250   #npts for fit curve in plotting
 
 num_k = len(k_list)
 
