@@ -64,12 +64,12 @@ subroutine calculate_frequencies_and_smoothing
 
  !------------ create exponential window function ---------------
  !------------ in case we want to use windowing later -----------
- tau_window = 0.01*Ntimesteps
+ !tau_window = 0.01*Ntimesteps
  !tau_window = 8.69*Ntimesteps/(2*Decibels_reduced)
- allocate(window_fn(Ntimesteps))
- do i = 1, Ntimesteps
-     window_fn(i) = dexp( - abs(i - (Ntimesteps-1)/2) /tau_window)
- enddo
+ !allocate(window_fn(Ntimesteps))
+ !do i = 1, Ntimesteps!
+!     window_fn(i) = dexp( - abs(i - (Ntimesteps-1)/2) /tau_window)
+ !enddo
 
 end subroutine calculate_frequencies_and_smoothing
 

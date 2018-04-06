@@ -202,7 +202,9 @@ endif
      call read_LAAMPS_files
  endif
 
- r_eq(ia, ix) =  r_eq(ia, ix)  - lattice_vector(ix)*floor(r(ia, ix)/lattice_vector(ix)) ! PBC correction -- very important !
+ do ia = 1, Natoms
+    r_eq(ia, :) =  r_eq(ia, :)  - lattice_vector(:)*floor(r(ia, :)/lattice_vector(:)) ! PBC correction -- very important !
+ enddo
 
  if (C_TYPE_EIGENVECTOR) then
      write(*,*) "using equilibrium coords from GULP eig file , for use with C-type eigenvector representation ..."
@@ -283,9 +285,9 @@ else
 
  do ik = 1, Nk
      read(luneig, '(a,3f9.6)') junk, (k_vectors(ik, ix), ix = 1,3)
-     k_vectors(ik, 1) = k_vectors(ik, 1)*recip_lat_vec(1)/TwoPi
-     k_vectors(ik, 2) = k_vectors(ik, 2)*recip_lat_vec(2)/TwoPi
-     k_vectors(ik, 3) = k_vectors(ik, 3)*recip_lat_vec(3)/TwoPi
+     k_vectors(ik, 1) = k_vectors(ik, 1)*recip_lat_vec(1)*TwoPi
+     k_vectors(ik, 2) = k_vectors(ik, 2)*recip_lat_vec(2)*TwoPi
+     k_vectors(ik, 3) = k_vectors(ik, 3)*recip_lat_vec(3)*TwoPi
 
      do ie = 1, Neig
         read(luneig, *) !Mode    x

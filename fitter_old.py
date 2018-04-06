@@ -17,11 +17,11 @@ from matplotlib.ticker import ScalarFormatter, FormatStrFormatter
 # -----------------------------------------------------------------------------
 header = 'silicon_test'
 
-num_modes_plot = 9         # number of modes to plot per plot window
+num_modes_plot = 20         # number of modes to plot per plot window
 start_plot = 1             # mode to start the plotting at
-num_plot_windows_to_do = 0 #int(np.ceil((num_modes-start_plot)/num_modes_plot))
+num_plot_windows_to_do = 2 #int(np.ceil((num_modes-start_plot)/num_modes_plot))
 
-k = 2
+k = 1
 
 sw = 10 #search width on each side for fitting, in 1/cm
 pw = 20 #plottings width on each side for fitting, in 1/cm

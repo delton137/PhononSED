@@ -1,17 +1,17 @@
-'silicon'              'RDX'                    ! Model
-'silicon_test'                ! output file header
+'silicon'              'RDX'   ! Model
+'silicon_test'                 ! output file header
 216                            ! # of unit cells
 2                            ! # of k-vectors to do the calculation on (1 = Gamma point only)
-1296    20                           ! # of eigvectors to do the calculation
-'/Users/dan/silicon_1x1x1.trg'  _6x6x6.trg'         MgO40ns_1x1x1.trg'     ! LAMMPS velocities data file or GULP trajectory file
-'/Users/dan/eig_silicon_6x6x6.eig'   silicon_test_unitcellrep_1_frequencies.dat eig_silicon_1x1x1_3kpoints.eig'                              ! GULP eigenvectors data file
-.t.                      !use e^(k dot r_i) with eigenvector representation ("C-type"). False -> use k dot l_b ("D-type")
+20    20                           ! # of eigvectors to do the calculation
+'/Users/dan/silicon_6x6x6.trg'         MgO40ns_1x1x1.trg'     ! LAMMPS velocities data file or GULP trajectory file
+'/Users/dan/silicon_6x6x6_1k.eig'   silicon_test_unitcellrep_1_frequencies.dat eig_silicon_1x1x1_3kpoints.eig'                              ! GULP eigenvectors data file
+.f.                      ! use e^(k dot r_i) with eigenvector representation ("C-type"). False -> use k dot l_b ("D-type")
 ''                       'example_coords.dat'     ! LAMMPS coordinates file
 .t.                      ! Supercell eigenvectors?
-34000                   ! # of timesteps to read in
+5000                   ! # of timesteps to read in
 .02                      ! timestep (ps)
-.f.                      ! Read entire file until end?
-10000                    ! N points to output sin (smoothed) spectra
+.f.                      ! Read entire file until end? (count timesteps)
+10000                    ! N points to output in (smoothed) spectra
 .f.                      ! time domain method, output autocorrelation function of KE
 .t.                      ! GULP trajectory file
 1000                     ! number of timesteps to output in correlation function
