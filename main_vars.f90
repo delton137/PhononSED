@@ -22,12 +22,14 @@ module main_vars
  use mpi
  implicit none
  integer :: Natoms, Nunitcells, AtomsPerMolecule, MoleculesPerUnitCell, AtomsPerUnitCell
+ integer :: Nx, Ny, Nz
  integer :: Neig, lun, luneig, lunout, ik, ia, i, j, idx, ix, Ntimesteps, t, Nk, ie
  integer :: NPointsOut, length, BlockSize, NFullSEDPoints, Ncorrptsout, trun
  logical :: READALL, FULLSED, BTEMD, GULPINPUT, C_TYPE_EIGENVECTOR,  SUPERCELL_EIGENVECTOR
  real(8), parameter :: TwoPi = 2*3.14159d0
  real(8) :: timestep, MaxFreqOut, MinFreqOut, tau_window
- real(8), dimension(3) :: lattice_vector, recip_lat_vec
+ real(8), dimension(3,3) :: lattice_vector, recip_lat_vec
+ real(8), dimension(6,3) :: P0, normal, boxmap
  real(8), dimension(:), allocatable :: MassPrefac, spectrum_freqs, freqs_smoothed
  real(8), dimension(:), allocatable :: window_fn
  real(8), dimension(:,:), allocatable :: freqs, r, r_eq, k_vectors
@@ -42,5 +44,38 @@ module main_vars
  !MPI variables
  integer :: Nnodes=1, pid=0, ierr=0
  integer :: status2(MPI_STATUS_SIZE)
+
+ contains
+
+   !-------------------------------
+   ! Cross-Product
+   !------------------------------
+   function CrossProd(u,v) result (w)
+     implicit none
+
+     type(real(8)), dimension(3), intent(in) :: u, v
+     type(real(8)), dimension(3) :: w
+
+     w(1) = u(2)*v(3)-u(3)*v(2)
+     w(2) = u(3)*v(1)-u(1)*v(3)
+     w(3) = u(1)*v(2)-u(2)*v(1)
+
+   end function
+
+   !-------------------------------
+   ! Periodic Boundary Condition Mapping
+   !------------------------------
+   function MapPBC(P,n,xa,a) result(Pmap)
+     type(real(8)),dimension(3), intent(in) :: P, n, xa,a
+     type(real(8)), dimension(3) :: Pmap
+     integer i
+
+     if( ((DOT_PRODUCT(xa-P,n)/DABS(DOT_PRODUCT(xa-P,n)) ) .GE. 0.d0) .AND. ( DSQRT(DOT_PRODUCT(xa-P,xa-P)).GT.0.d-10 )) then
+        Pmap = xa + a
+     else
+        Pmap = xa
+     end if
+   end function
+     
 
 end module main_vars

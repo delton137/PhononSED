@@ -32,10 +32,9 @@ subroutine read_input_files
  use dans_timer
  implicit none
  integer :: luninp, Nlines, EoF
- real(8) :: a, c, a1, a2, a3, denom
+ real(8) :: a1, a2, a3, denom
  real(8) :: MC = 12.011000, MN = 14.007200, MO = 15.999430, MH = 1.0080000, MSi=28.0855
- real(8) :: MMg = 24.305, MHf = 178.49, MS = 32.065
- real(8)  :: n(3)
+ real(8) :: MMg = 24.305
 
 
  !call io_assign(luninp)
@@ -61,6 +60,7 @@ subroutine read_input_files
 
  !call io_close(luninp)
 
+
  !-------------------- RDX  ------------------------------------------------
  if (model == 'RDX') then
     write(*,*) "Model is RDX"
@@ -68,11 +68,6 @@ subroutine read_input_files
     MoleculesPerUnitCell = 8
     AtomsPerUnitCell = AtomsPerMolecule*MoleculesPerUnitCell !168
     Natoms = Nunitcells*AtomsPerUnitCell
-
-    ! Assume equal number of PUC tiling in each lattice vector direction
-    Nx = int(Nunitcells**(1./3.))
-    Ny = int(Nunitcells**(1./3.))
-    Nz = int(Nunitcells**(1./3.))
 
     allocate(MassPrefac(Natoms))
     allocate(freqs(Nk, Neig))
@@ -95,20 +90,10 @@ subroutine read_input_files
     a1 = 13.18200 !x
     a2 = 11.5741  !y
     a3 = 10.709   !z
-    lattice_vector(1,:) = (/ a1, 0.d0, 0.d0 /)
-    lattice_vector(2,:) = (/ 0.d0, a2, 0.d0 /)
-    lattice_vector(3,:) = (/ 0.d0, 0.d0, a3 /)
-
-     ! Tile lattice vectors such that they are commensurate with the SC used in the MD simulations (this will have knock on effects with regard to the
-     ! reciprocal lattice vectors and wherever they are used)
-     lattice_vector(1,:) = Nx*lattice_vector(1,:)
-     lattice_vector(2,:) = Ny*lattice_vector(2,:)
-     lattice_vector(3,:) = Nz*lattice_vector(3,:)
+    lattice_vector = (/ a1, a2, a3 /)
 
     denom = a1*a2*a3
-    recip_lat_vec(1,:) = (/ a2*a3 , 0.d0   , 0.d0    /) !! Perpendicularity assumed!!
-    recip_lat_vec(2,:) = (/ 0.d0    ,a1*a3 , 0.d0    /) !! Perpendicularity assumed!!
-    recip_lat_vec(3,:) = (/ 0.d0    , 0.d0   , a2*a3 /) !! Perpendicularity assumed!!
+    recip_lat_vec = (/ a2*a3 ,a1*a3 , a2*a3 /) !! Perpendicularity assumed!!
     recip_lat_vec = TwoPi*recip_lat_vec/denom
 
 !-------------------- Magnesium Oxide (MgO) -------------------------------
@@ -118,11 +103,6 @@ else if (model == 'MgO') then
     MoleculesPerUnitCell = 1
     AtomsPerUnitCell = AtomsPerMolecule*MoleculesPerUnitCell !168
     Natoms = Nunitcells*AtomsPerUnitCell
-
-    ! Assume equal number of PUC tiling in each lattice vector direction
-    Nx = int(Nunitcells**(1./3.))
-    Ny = int(Nunitcells**(1./3.))
-    Nz = int(Nunitcells**(1./3.))
 
     allocate(MassPrefac(Natoms))
     allocate(freqs(Nk, Neig))
@@ -144,33 +124,18 @@ else if (model == 'MgO') then
     a1 = 4.211986  !x
     a2 = 4.211986  !y
     a3 = 4.211986  !z
-    lattice_vector(1,:) = (/ a1, 0.d0, 0.d0 /)
-    lattice_vector(2,:) = (/ 0.d0, a2, 0.d0 /)
-    lattice_vector(3,:) = (/ 0.d0, 0.d0, a3 /)
-
-     ! Tile lattice vectors such that they are commensurate with the SC used in the MD simulations (this will have knock on effects with regard to the
-     ! reciprocal lattice vectors and wherever they are used)
-     lattice_vector(1,:) = Nx*lattice_vector(1,:)
-     lattice_vector(2,:) = Ny*lattice_vector(2,:)
-     lattice_vector(3,:) = Nz*lattice_vector(3,:)
+    lattice_vector = (/ a1, a2, a3 /)
 
     denom = a1*a2*a3
-    recip_lat_vec(1,:) = (/ a2*a3 , 0.d0   , 0.d0    /) !! Perpendicularity assumed!!
-    recip_lat_vec(2,:) = (/ 0.d0    ,a1*a3 , 0.d0    /) !! Perpendicularity assumed!!
-    recip_lat_vec(3,:) = (/ 0.d0    , 0.d0   , a2*a3 /) !! Perpendicularity assumed!!
+    recip_lat_vec = (/ a2*a3 ,a1*a3 , a2*a3 /) !! Perpendicularity assumed!!
 
-!-------------------- Silicon (Si) -------------------------------
+    recip_lat_vec = TwoPi*recip_lat_vec/denom
  else if (model .eq. 'silicon') then
      write(*,*) "Model is silicon"
      AtomsPerMolecule = 2
      MoleculesPerUnitCell = 1
      AtomsPerUnitCell = AtomsPerMolecule*MoleculesPerUnitCell !2
      Natoms = Nunitcells*AtomsPerUnitCell !2
-
-     ! Assume equal number of PUC tiling in each lattice vector direction
-     Nx = int(Nunitcells**(1./3.))
-     Ny = int(Nunitcells**(1./3.))
-     Nz = int(Nunitcells**(1./3.))
 
      allocate(MassPrefac(Natoms))
      allocate(freqs(Nk, Neig))
@@ -180,76 +145,16 @@ else if (model == 'MgO') then
      MassPrefac = MSi
      MassPrefac = sqrt(MassPrefac/real(Nunitcells))
 
-     a1 = 2*2.7285d0  !x
-     a2 = 2*2.7285d0  !y
-     a3 = 2*2.7285d0  !z
-     lattice_vector(1,:) = 0.5*(/ 0.d0, a2, a3 /)
-     lattice_vector(2,:) = 0.5*(/ a1, 0.d0, a3 /)
-     lattice_vector(3,:) = 0.5*(/ a1, a2, 0.d0 /)
+     a1 = 2*2.7285  !x
+     a2 = 2*2.7285  !y
+     a3 = 2*2.7285  !z
+     lattice_vector = (/ a1, a2, a3 /)
 
-     ! Tile lattice vectors such that they are commensurate with the SC used in the MD simulations (this will have knock on effects with regard to the
-     ! reciprocal lattice vectors and wherever they are used)
-     lattice_vector(1,:) = Nx*lattice_vector(1,:)
-     lattice_vector(2,:) = Ny*lattice_vector(2,:)
-     lattice_vector(3,:) = Nz*lattice_vector(3,:)
-
-     denom = DOT_PRODUCT(lattice_vector(1,:),CrossProd(lattice_vector(2,:),lattice_vector(3,:)))
-
-     recip_lat_vec(1,:) = CrossProd(lattice_vector(2,:),lattice_vector(3,:))
-     recip_lat_vec(2,:) = CrossProd(lattice_vector(3,:),lattice_vector(1,:))
-     recip_lat_vec(3,:) = CrossProd(lattice_vector(1,:),lattice_vector(2,:))
+     denom = a1*a2*a3
+     recip_lat_vec = (/ a2*a3 ,a1*a3 , a2*a3 /) !! Perpendicularity assumed!!
 
      recip_lat_vec = TwoPi*recip_lat_vec/denom
-
- !-------------------- Halfnium disulphide (Si) -------------------------------
-else if (model .eq. 'HfS2') then
-        write(*,*) "Model is HfS2 (halfnium disulphide)"
-        AtomsPerMolecule = 3
-        MoleculesPerUnitCell = 1
-        AtomsPerUnitCell = AtomsPerMolecule*MoleculesPerUnitCell !3
-        Natoms = Nunitcells*AtomsPerUnitCell
-
-        ! Assume equal number of PUC tiling in each lattice vector direction
-        Nx = int(Nunitcells**(1./3.))
-        Ny = int(Nunitcells**(1./3.))
-        Nz = int(Nunitcells**(1./3.))
-
-        allocate(MassPrefac(Natoms))
-        allocate(freqs(Nk, Neig))
-        allocate(eig_vecs(Nk, Neig, Natoms, 3))
-
-        !build array of masses for ALL atoms
-        idx = 1
-        do i = 1, Nunitcells
-            do j = 1, MoleculesPerUnitCell
-                MassPrefac(idx+0)       = MHf ! Halfnium
-                MassPrefac(idx+1:idx+2) = MS ! Sulphur
-                idx = idx + AtomsPerMolecule
-            enddo
-        enddo
-
-        !! Hexagonal closed packed cell parameters must be entered by hand here!!
-        a = 2
-        c = 2
-        lattice_vector(1,:) = (/ a, 0.d0, 0.d0/)
-        lattice_vector(2,:) = (/ -0.5*a, dsqrt(3.d0)/(2.d0*a), 0.d0 /)
-        lattice_vector(3,:) = (/ 0.d0, 0.d0, c /)
-
-        ! Tile lattice vectors such that they are commensurate with the SC used in the MD simulations (this will have knock on effects with regard to the
-        ! reciprocal lattice vectors and wherever they are used)
-        lattice_vector(1,:) = Nx*lattice_vector(1,:)
-        lattice_vector(2,:) = Ny*lattice_vector(2,:)
-        lattice_vector(3,:) = Nz*lattice_vector(3,:)
-
-        denom = DOT_PRODUCT(lattice_vector(1,:),CrossProd(lattice_vector(2,:),lattice_vector(3,:)))
-
-        recip_lat_vec(1,:) = CrossProd(lattice_vector(2,:),lattice_vector(3,:))
-        recip_lat_vec(2,:) = CrossProd(lattice_vector(3,:),lattice_vector(1,:))
-        recip_lat_vec(3,:) = CrossProd(lattice_vector(1,:),lattice_vector(2,:))
-
-        recip_lat_vec = TwoPi*recip_lat_vec/denom
-
-    else
+ else
     write(*,*) "ERROR : model not found!!"
  endif
 
@@ -297,35 +202,9 @@ endif
      call read_LAAMPS_files
  endif
 
- !!! PBC correction
-
- ! Vectors for PBC mapping
- P0(1,:) = (/ 0.d0, 0.d0, 0.d0 /)
- P0(2,:) = P0(1,:)
- P0(3,:) = P0(2,:)
- P0(4,:) = lattice_vector(1,:) + lattice_vector(2,:) + lattice_vector(3,:)
- P0(5,:) = P0(4,:)
- P0(6,:) = P0(5,:)
-
- normal(1,:) = CrossProd(lattice_vector(3,:),lattice_vector(2,:))
- normal(2,:) = CrossProd(lattice_vector(1,:),lattice_vector(3,:))
- normal(3,:) = CrossProd(lattice_vector(2,:),lattice_vector(1,:))
- normal(4,:) = -normal(1,:)
- normal(5,:) = -normal(2,:)
- normal(6,:) = -normal(3,:)
-
- boxmap(1,:) = lattice_vector(1,:)
- boxmap(2,:) = lattice_vector(2,:)
- boxmap(3,:) = lattice_vector(3,:)
- boxmap(4,:) = -lattice_vector(1,:)
- boxmap(5,:) = -lattice_vector(2,:)
- boxmap(6,:) = -lattice_vector(3,:)
-
- do ia = 1,Natoms
-    do i = 1, 6
-       r_eq(ia,:) = MapPBC(P0(i,:),normal(i,:),r_eq(ia,:),boxmap(i,:))
-    end do
- end do
+ do ia = 1, Natoms
+    r_eq(ia, :) =  r_eq(ia, :)  - lattice_vector(:)*floor(r(ia, :)/lattice_vector(:)) ! PBC correction -- very important !
+ enddo
 
  if (C_TYPE_EIGENVECTOR) then
      write(*,*) "using equilibrium coords from GULP eig file , for use with C-type eigenvector representation ..."
@@ -343,11 +222,9 @@ endif
      write(*, *) "generating unit cell coordinates for use with D-type eigenvector representation ..."
      !---- figure out equilibrium unit cell coordinates
      !---- this calculates the coordinate for the corner of the unit cell each atom is in
-     !----
-     !---- Here we work under the assumption that our simulation cell is the unit cell and therefore the lattice point is at 0.0
      do ia = 1, Natoms
          do ix = 1, 3
-             r(ia, ix) =  0.d0 ! floor(r_eq(ia,ix)/lattice_vector(ix,ix))*lattice_vector(ix,ix)
+             r(ia, ix) =  floor(r_eq(ia,ix)/lattice_vector(ix))*lattice_vector(ix)
          enddo
      enddo
  endif
@@ -408,9 +285,9 @@ else
 
  do ik = 1, Nk
      read(luneig, '(a,3f9.6)') junk, (k_vectors(ik, ix), ix = 1,3)
-     k_vectors(ik, 1) = k_vectors(ik, 1)*recip_lat_vec(1,1)/TwoPi
-     k_vectors(ik, 2) = k_vectors(ik, 2)*recip_lat_vec(2,2)/TwoPi
-     k_vectors(ik, 3) = k_vectors(ik, 3)*recip_lat_vec(3,3)/TwoPi
+     k_vectors(ik, 1) = k_vectors(ik, 1)*recip_lat_vec(1)*TwoPi
+     k_vectors(ik, 2) = k_vectors(ik, 2)*recip_lat_vec(2)*TwoPi
+     k_vectors(ik, 3) = k_vectors(ik, 3)*recip_lat_vec(3)*TwoPi
 
      do ie = 1, Neig
         read(luneig, *) !Mode    x
@@ -427,8 +304,8 @@ else
             else
                 read(luneig, *, iostat=my_iostat) realpart(1), realpart(2), realpart(3), cmplxpart(1), cmplxpart(2), cmplxpart(3)
                 if (my_iostat /= 0) then
-                    write(*,*) 'WARNING: missing complex part of eigenvector in k=', ik, ' ieig = ', ie
-                    backspace(luneig)
+                    !write(*,*) 'WARNING: missing complex part of eigenvector in k=', ik, ' ieig = ', ie
+                    !backspace(luneig)
                     my_iostat = 0
                     read(luneig, *, iostat=my_iostat) realpart(1), realpart(2), realpart(3), space, &
                                                       cmplxpart(1), cmplxpart(2), cmplxpart(3)
@@ -563,7 +440,7 @@ end subroutine read_GULP_trajectory_file
 
 
 !-----------------------------------------------------------------------
-!----------------- Read one frame of velocities file ------------------
+!----------------- Read one frame of .xyz velocities file -------------
 !-----------------------------------------------------------------------
 function one_frame(lun)
  implicit none
@@ -598,29 +475,21 @@ end function one_frame
 !-----------------------------------------------------------------------
 !----------------- Read one frame of a standard .xyz file -------------
 !-----------------------------------------------------------------------
-function one_frame_xyz(lun, has_comment_line)
+function one_frame_xyz(lun)
  implicit none
  real(8), dimension(Natoms, 3) :: one_frame_xyz
  integer, intent(in) :: lun
- logical, optional :: has_comment_line
  integer ::  Natoms_file
  character(2) :: junk
 
- if (.not. present(has_comment_line)) then
-   has_comment_line = .true.
- endif
-
  read(lun,*) Natoms_file
- if (has_comment_line) read(lun,*) !comment line
+ read(lun,*) !comment line
 
  do ia = 1, Natoms
     read(lun,*) junk, (one_frame_xyz(ia, ix), ix=1,3)
  enddo
 
 end function one_frame_xyz
-
-
-
 
 !---------------------------------------------------------------------
 !-----------------  Print SED and other outputs ---------------------
