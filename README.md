@@ -10,6 +10,12 @@ Run as:
 `./PhononSED.x < PhononSED.inp`
 `python fitter.py`
 
+To compile a parallel version with MPI used
+`make parallel`
+
+To run the parallel version, used
+`mpirun -stdin all -np *number_of_processors* ./PhononSED.x < RDXPhononSED.inp`
+
 references:
 * J. M. Larkin, Ph.D. thesis, Carnegie Mellon University, 2013
 * Larkin, et al., *Phys. Rev. B* **81**, 081411(R) (2010)
