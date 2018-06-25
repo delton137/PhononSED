@@ -1,7 +1,5 @@
 ### Phonon SED
-PhononSED.f90 Fortran-90 code calculates Projected Phonon Spectral Energy Density (SED) from molecular dynamics atomic velocity data and phonon eigenvectors.
-
-fitter.py Python code calculates phonon lifetimes by fitting Lorentzians to the SED data
+The *PhononSED* Fortran-90 code calculates phonon projected Spectral Energy Densities (SEDs) from molecular dynamics atomic velocity data and phonon eigenvectors calculated with GULP.
 
 Compile with
 `make`
@@ -10,13 +8,16 @@ Run as:
 `./PhononSED.x < PhononSED.inp`
 `python fitter.py`
 
-To compile a parallel version with MPI used
+To compile a parallel version with MPI use
 `make parallel`
 
-To run the parallel version, used
+To run the parallel version, use
 `mpirun -stdin all -np *number_of_processors* ./PhononSED.x < RDXPhononSED.inp`
 
-references:
+*fitter.py* is an example python code calculates phonon lifetimes by fitting Lorentzians to the SED data. A newer version has been developed in Matlab.
+
+
+### References
 * J. M. Larkin, Ph.D. thesis, Carnegie Mellon University, 2013
 * Larkin, et al., *Phys. Rev. B* **81**, 081411(R) (2010)
 * A. J. H. McGaughey and M. Kaviany, *Phys. Rev. B* **69**, 094303 (2004).
