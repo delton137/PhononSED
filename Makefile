@@ -1,4 +1,4 @@
-FILES=four1 mpi dans_timer lun_management main_vars InputOutput eig_project PhononSED
+FILES=four1 dans_timer lun_management main_vars InputOutput eig_project PhononSED
 OBJS=$(addsuffix .o, $(FILES))
 
 FC= gfortran
@@ -7,6 +7,10 @@ FC= gfortran
 FFLAGS = -O3  -cpp
 
 all: PhononSED.x
+
+parallel: FC=mpif90
+parallel: FFLAGS = -O3  -cpp -Dparallel --debug --backtrace -fbounds-check
+parallel: PhononSED.x
 
 #compilation for debugging
 debug: FFLAGS += --debug --backtrace -fbounds-check

@@ -1,9 +1,9 @@
-'silicon'              'RDX'   ! Model
-'silicon_test'                 ! output file header
-216                            ! # of unit cells
-2                            ! # of k-vectors to do the calculation on (1 = Gamma point only)
-20    20                           ! # of eigvectors to do the calculation
-'/Users/dan/silicon_6x6x6.trg'         MgO40ns_1x1x1.trg'     ! LAMMPS velocities data file or GULP trajectory file
+'silicon'                 'RDX'   ! Model
+'silicon_test'            ! output file header
+216                       ! # of unit cells
+2                         ! # of k-vectors to do the calculation on (1 = Gamma point only)
+20                        ! # of eigvectors to do the calculation
+'/Users/dan/silicon_6x6x6.trg'         MgO40ns_1x1x1.trg'     ! velocities data file or GULP trajectory file
 '/Users/dan/silicon_6x6x6_1k.eig'   silicon_test_unitcellrep_1_frequencies.dat eig_silicon_1x1x1_3kpoints.eig'                              ! GULP eigenvectors data file
 .f.                      ! use e^(k dot r_i) with eigenvector representation ("C-type"). False -> use k dot l_b ("D-type")
 ''                       'example_coords.dat'     ! LAMMPS coordinates file
@@ -13,5 +13,6 @@
 .f.                      ! Read entire file until end? (count timesteps)
 10000                    ! N points to output in (smoothed) spectra
 .f.                      ! time domain method, output autocorrelation function of KE
-.t.                      ! GULP trajectory file
+.f.                      ! GULP trajectory file
+.t.                      ! Q Espresso input (.vel)
 1000                     ! number of timesteps to output in correlation function

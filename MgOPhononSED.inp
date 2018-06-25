@@ -3,7 +3,7 @@
 8                            ! # of unit cells
 8                            ! # of k-vectors to do the calculation on (1 = Gamma point only)
 192     24                          ! # of eigvectors to do the calculation
-'/Users/dan/MgO2ns_2x2x2.trg'         MgO40ns_1x1x1.trg'     ! LAMMPS velocities data file or GULP trajectory file
+'/Users/dan/MgO2ns_2x2x2.trg'         MgO40ns_1x1x1.trg'     ! velocities data file or GULP trajectory file
 '/Users/dan/eigMgO_2x2x2_2x2x2.eig'                   ! GULP eigenvectors data file
 .t.                      !use e^(k dot r_i) with eigenvector represenation ("C-type"). False -> use k dot l_b ("D-type")
 'MgO.xyz'                'example_coords.dat'     ! LAMMPS coordinates file
@@ -14,4 +14,5 @@
 10000                    ! N points to output in (smoothed) spectra
 .f.                      ! time domain method, output autocorrelation function of KE
 .t.                      ! GULP trajectory file
+.f.                      ! Q Espresso input (.vel)
 1000                     ! number of timesteps to output in correlation function

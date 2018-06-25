@@ -19,7 +19,9 @@
 ! OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 !-------------------------------------------------------------------------------------
 module main_vars
+#ifdef parallel
  use mpi
+#endif
  implicit none
  integer :: Natoms, Nunitcells, AtomsPerMolecule, MoleculesPerUnitCell, AtomsPerUnitCell
  integer :: Nx, Ny, Nz
@@ -41,10 +43,13 @@ module main_vars
  double precision, parameter :: Cspeed=3.00d10 ! cm/s
  double precision, parameter :: ps2s=1d-12 ! 1ps in s
  character(len=200) :: model, fvel, feig, fcoord, fileheader, fcoords
- !MPI variables
- integer :: Nnodes=1, pid=0, ierr=0
+ !MPI/ parallelization related variables
+ real(8), dimension(:), allocatable :: a_SED_smoothed
+ double complex, dimension(:,:), allocatable :: a_eig_vec
+ integer :: Nnodes=1, pid=0, ierr=0, Nbatches, bat
+#ifdef parallel
  integer :: status2(MPI_STATUS_SIZE)
-
+#endif 
  contains
 
    !-------------------------------
@@ -76,6 +81,6 @@ module main_vars
         Pmap = xa
      end if
    end function
-     
+
 
 end module main_vars

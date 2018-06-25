@@ -1,7 +1,7 @@
 !-------------------------------------------------------------------------
 ! File I/O routines
 !-------------------------------------------------------------------------
-! Copyright (c) 2017 Daniel C. Elton
+! Copyright (c) 2017-2018 Daniel C. Elton
 !
 ! This software is licensed under The MIT License (MIT)
 ! Permission is hereby granted, free of charge, to any person obtaining a copy of this
@@ -219,18 +219,14 @@ else if (model .eq. 'HfS2') then
         allocate(eig_vecs(Nk, Neig, Natoms, 3))
 
         !build array of masses for ALL atoms
-        idx = 1
-        do i = 1, Nunitcells
-            do j = 1, MoleculesPerUnitCell
-                MassPrefac(idx+0)       = MHf ! Halfnium
-                MassPrefac(idx+1:idx+2) = MS ! Sulphur
-                idx = idx + AtomsPerMolecule
-            enddo
-        enddo
+        MassPrefac(1:int(Natoms/3)) = MHf
+        MassPrefac(int(Natoms/3)+1:Natoms) = MS
+        MassPrefac = sqrt(MassPrefac/real(Nunitcells))
 
         !! Hexagonal closed packed cell parameters must be entered by hand here!!
-        a = 2
-        c = 2
+        a = 3.6529
+        c = 5.6544
+
         lattice_vector(1,:) = (/ a, 0.d0, 0.d0/)
         lattice_vector(2,:) = (/ -0.5*a, dsqrt(3.d0)/(2.d0*a), 0.d0 /)
         lattice_vector(3,:) = (/ 0.d0, 0.d0, c /)
@@ -284,18 +280,21 @@ endif
 
 
  !read in eigenvectors we will be working with
- if(pid .eq. 0)  call start_timer("reading files")
+ if (pid .eq. 0)  call start_timer("reading files")
 
- write(*, *) "reading eigenvector file... "
+ if (pid .eq. 0)  write(*, *) "reading eigenvector file... "
+
  call read_eigvector_file
 
  !read in necessary velocities & coordinate data
- write(*, *) "reading velocities file... "
+ if (pid .eq. 0)  write(*, *) "reading velocities file... "
+
  if (GULPINPUT) then
      call read_GULP_trajectory_file
   else
      call read_LAAMPS_files
  endif
+
 
  !!! PBC correction
 
@@ -340,7 +339,7 @@ endif
      !r = one_frame_xyz(lun)
      !call io_close(lun)
  else
-     write(*, *) "generating unit cell coordinates for use with D-type eigenvector representation ..."
+     if (pid .eq. 0) write(*, *) "generating unit cell coordinates for use with D-type eigenvector representation ..."
      !---- figure out equilibrium unit cell coordinates
      !---- this calculates the coordinate for the corner of the unit cell each atom is in
      !----
@@ -481,7 +480,6 @@ else
      enddo
 
  enddo !ik = 1, Nk
-
 end subroutine read_eigvector_file
 
 !-----------------------------------------------------------------------
@@ -560,6 +558,27 @@ subroutine read_GULP_trajectory_file
 
 end subroutine read_GULP_trajectory_file
 
+
+!-----------------------------------------------------------------------
+!----------------- Read in .vel file from Quantum Espresso ------------
+!-----------------------------------------------------------------------
+subroutine read_quantum_espresso
+ implicit none
+ integer :: lun
+
+      !------------- read velocities file ------
+      call io_assign(lun)
+      open(lun, file=fvel, status='old', action='read')
+
+      allocate(velocities(Ntimesteps, Natoms, 3))
+      do t = 1, Ntimesteps
+          if (mod(t,1000).eq.0) write(*,*) "reading: ", t, "of", Ntimesteps
+          velocities(t, :, :) = one_frame_xyz(lun, .false.)
+      enddo
+
+      call io_close(lun)
+
+ end subroutine read_quantum_espresso
 
 
 !-----------------------------------------------------------------------

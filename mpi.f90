@@ -13,7 +13,7 @@
 ! around all MPI calls instead.
 !
 !-------------------------------------------------------------------------------------
-! Copyright (c) 2014-2015 Daniel C. Elton 
+! Copyright (c) 2014-2015 Daniel C. Elton
 !
 ! This software is licensed under The MIT License (MIT)
 ! Permission is hereby granted, free of charge, to any person obtaining a copy of this
