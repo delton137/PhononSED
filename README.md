@@ -14,7 +14,7 @@ To compile a parallel version with MPI use
 To run the parallel version, use
 `mpirun -stdin all -np *number_of_processors* ./PhononSED.x < RDXPhononSED.inp`
 
-*fitter.py* is an example python code calculates phonon lifetimes by fitting Lorentzians to the SED data. A newer version has been developed in Matlab.
+*fitter.py* is an example Python code which calculates phonon lifetimes by fitting Lorentzians to the SED data. A newer version has been developed in Matlab.
 
 
 ### References

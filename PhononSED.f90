@@ -135,7 +135,9 @@ Program PhononSED
 
   call io_close_all() !close ALL open file units
 
+#ifdef parallel
  call MPI_Barrier(MPI_COMM_WORLD, ierr)
  call MPI_Finalize(ierr)
+#endif
 
 end program PhononSED
